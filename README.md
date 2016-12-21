@@ -5,7 +5,7 @@
 **VERSION CONTROL**
 **v.001 VZ - December 2016**
 
-***INFORMATION ABOUT CLASS**
+**INFORMATION ABOUT CLASS**
  This class consists of various methods which we find useful in BPC
  BADI developments. This class could be called from BADI and parameters
  could be passed to the required methods. This Class id Generic in it's
@@ -39,7 +39,7 @@
     passed in the Importing parameter. Returns all children and can later
     be reused in READ_MODEL_DATA filter.
 	
-***FAIR USE**
+**FAIR USE**
 Please feel free to reuse this class in your implementations. Just drop me a quick line 
 about your project.
 
