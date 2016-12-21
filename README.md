@@ -1,1 +1,2 @@
-# SAP_BADI_BPC
+# BADI developments for BPC
+# Common Class
