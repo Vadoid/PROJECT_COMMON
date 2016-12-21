@@ -7,6 +7,7 @@
 **v.001 VZ - December 2016**
 
 **INFORMATION ABOUT CLASS**
+
  This class consists of various methods which we find useful in BPC
  BADI developments. This class could be called from BADI and parameters
  could be passed to the required methods. This Class id Generic in it's
