@@ -1,32 +1,32 @@
-class ZCL_BPC_COMMON definition
-  public
-  final
-  create public .
+CLASS ZCL_BPC_COMMON DEFINITION
+  PUBLIC
+  FINAL
+  CREATE PUBLIC .
 
-public section.
+  PUBLIC SECTION.
 
-  class-methods TEST_AND_DEBUG.
+    CLASS-METHODS TEST_AND_DEBUG.
 *    changing
 *      !CHANGING_DATA type STANDARD TABLE optional .
-  class-methods READ_MODEL_DATA
-    importing
-      !I_APPSET_ID type UJ_APPSET_ID
-      !I_APPL_ID type UJ_APPL_ID
-      !IT_CV type UJK_T_CV optional
-      !IT_SEL type UJ0_T_SEL optional
-    exporting
-      !OUTPUT_DATA type STANDARD TABLE .
-  class-methods WRITE_MODEL_DATA
-    importing
-      !I_APPSET_ID type UJ_APPSET_ID
-      !I_APPL_ID type UJ_APPL_ID
-      !TARGET_MODEL type UJ_APPL_ID optional
-      !INPUT_DATA type STANDARD TABLE
-    exporting
-      !ET_MESSAGE type UJ0_T_MESSAGE
-      !ET_ERROR_RECORDS type STANDARD TABLE .
-protected section.
-private section.
+    CLASS-METHODS READ_MODEL_DATA
+      IMPORTING
+        !I_APPSET_ID TYPE UJ_APPSET_ID
+        !I_APPL_ID   TYPE UJ_APPL_ID
+        !IT_CV       TYPE UJK_T_CV OPTIONAL
+        !IT_SEL      TYPE UJ0_T_SEL OPTIONAL
+      EXPORTING
+        !OUTPUT_DATA TYPE STANDARD TABLE .
+    CLASS-METHODS WRITE_MODEL_DATA
+      IMPORTING
+        !I_APPSET_ID      TYPE UJ_APPSET_ID
+        !I_APPL_ID        TYPE UJ_APPL_ID
+        !TARGET_MODEL     TYPE UJ_APPL_ID OPTIONAL
+        !INPUT_DATA       TYPE STANDARD TABLE
+      EXPORTING
+        !ET_MESSAGE       TYPE UJ0_T_MESSAGE
+        !ET_ERROR_RECORDS TYPE STANDARD TABLE .
+  PROTECTED SECTION.
+  PRIVATE SECTION.
 ENDCLASS.
 
 
@@ -34,26 +34,26 @@ ENDCLASS.
 CLASS ZCL_BPC_COMMON IMPLEMENTATION.
 
 
-METHOD READ_MODEL_DATA.
+  METHOD READ_MODEL_DATA.
 
 ** 1. **--------- Data Declarations -------**
-  DATA: lt_sel TYPE uj0_t_sel, "Selection criteria table
-        ls_sel TYPE uj0_s_sel,
-        ls_cv TYPE ujk_s_cv,      " Logic Current View
-        lt_dim_member TYPE uja_t_dim_member ,
-        ls_dim_member LIKE LINE OF lt_dim_member ,
-        lo_appl TYPE REF TO cl_uja_application,
-        lt_appl_dim TYPE uja_t_appl_dim,
-        ls_appl_dim LIKE LINE OF lt_appl_dim,
-        lt_dim_name TYPE ujq_t_dim,
-        ls_dim_name LIKE LINE OF lt_dim_name,
-        lo_model TYPE REF TO if_uj_model,
-        lo_dataref TYPE REF TO data,
-        lo_query TYPE REF TO if_ujo_query ,
-        lv_end_of_data    TYPE rs_bool,
-        lt_message TYPE uj0_t_message .
+    DATA: LT_SEL         TYPE UJ0_T_SEL, "Selection criteria table
+          LS_SEL         TYPE UJ0_S_SEL,
+          LS_CV          TYPE UJK_S_CV,      " Logic Current View
+          LT_DIM_MEMBER  TYPE UJA_T_DIM_MEMBER,
+          LS_DIM_MEMBER  LIKE LINE OF LT_DIM_MEMBER,
+          LO_APPL        TYPE REF TO CL_UJA_APPLICATION,
+          LT_APPL_DIM    TYPE UJA_T_APPL_DIM,
+          LS_APPL_DIM    LIKE LINE OF LT_APPL_DIM,
+          LT_DIM_NAME    TYPE UJQ_T_DIM,
+          LS_DIM_NAME    LIKE LINE OF LT_DIM_NAME,
+          LO_MODEL       TYPE REF TO IF_UJ_MODEL,
+          LO_DATAREF     TYPE REF TO DATA,
+          LO_QUERY       TYPE REF TO IF_UJO_QUERY,
+          LV_END_OF_DATA TYPE RS_BOOL,
+          LT_MESSAGE     TYPE UJ0_T_MESSAGE.
 
-  FIELD-SYMBOLS:  <lt_query_result> TYPE STANDARD TABLE.
+    FIELD-SYMBOLS:  <LT_QUERY_RESULT> TYPE STANDARD TABLE.
 
 **---------------End of Data Declaration----------------------**
 
@@ -62,28 +62,28 @@ METHOD READ_MODEL_DATA.
 
 *---- 2. Create an object  for  the input parameters such i_appset_id,  i_appl_id.-------*
 
-  CREATE OBJECT lo_appl
-    EXPORTING
-      i_appset_id      = i_appset_id
-      i_application_id = i_appl_id.
+    CREATE OBJECT LO_APPL
+      EXPORTING
+        I_APPSET_ID      = I_APPSET_ID
+        I_APPLICATION_ID = I_APPL_ID.
 
 *---- 3. Use this object to read the dimension for the  i_appl_id  & Append ' Measures ' to the dimension table -----*
 
-  REFRESH lt_appl_dim.
-  lo_appl->get_appl_dim(
-  EXPORTING
-  i_appl_id   = i_appl_id
-  IMPORTING
-  et_appl_dim = lt_appl_dim ). "dimension table
-  REFRESH lt_dim_name.
+    REFRESH LT_APPL_DIM.
+    LO_APPL->GET_APPL_DIM(
+    EXPORTING
+    I_APPL_ID   = I_APPL_ID
+    IMPORTING
+    ET_APPL_DIM = LT_APPL_DIM ). "dimension table
+    REFRESH LT_DIM_NAME.
 
 **Populate dimension table 'lt_dim_name'.
 
-  LOOP AT lt_appl_dim INTO ls_appl_dim.
-    ls_dim_name = ls_appl_dim-dimension.
-    APPEND ls_dim_name TO lt_dim_name.
-    CLEAR ls_dim_name.
-  ENDLOOP.
+    LOOP AT LT_APPL_DIM INTO LS_APPL_DIM.
+      LS_DIM_NAME = LS_APPL_DIM-DIMENSION.
+      APPEND LS_DIM_NAME TO LT_DIM_NAME.
+      CLEAR LS_DIM_NAME.
+    ENDLOOP.
 
 * Include ' Measures ' as dimension table *
 *  ls_dim_name  = 'MEASURES'.
@@ -92,34 +92,34 @@ METHOD READ_MODEL_DATA.
 
 *--4. Prepare Selection range table say for ex :  'lt_sel '  *.
 * if it_sel[] is initial.
-  LOOP AT  lt_dim_name INTO ls_dim_name  .
-    CLEAR : ls_cv .
+    LOOP AT  LT_DIM_NAME INTO LS_DIM_NAME  .
+      CLEAR : LS_CV .
 
-    READ TABLE it_sel INTO ls_sel WITH KEY dimension = ls_dim_name .
-    IF sy-subrc = 0.
-      LOOP AT it_sel INTO ls_sel WHERE dimension = ls_dim_name .
-        APPEND ls_sel TO lt_sel.
-      ENDLOOP.
-      CONTINUE.
-    ENDIF.
+      READ TABLE IT_SEL INTO LS_SEL WITH KEY DIMENSION = LS_DIM_NAME .
+      IF SY-SUBRC = 0.
+        LOOP AT IT_SEL INTO LS_SEL WHERE DIMENSION = LS_DIM_NAME .
+          APPEND LS_SEL TO LT_SEL.
+        ENDLOOP.
+        CONTINUE.
+      ENDIF.
 * Read from scope for each dimension from current view table*
-  IF it_cv is not INITIAL.
+      IF IT_CV IS NOT INITIAL.
 
-    READ TABLE it_cv INTO ls_cv WITH KEY dimension =  ls_dim_name .
-    IF sy-subrc = 0 . "and ls_cv-USER_SPECIFIED = abap_true.
-      LOOP AT ls_cv-member INTO ls_dim_member.
-        ls_sel-dimension = ls_cv-dimension.
-        ls_sel-attribute = 'ID'.
-        ls_sel-sign = 'I'.
-        ls_sel-option = 'EQ'.
-        ls_sel-low = ls_dim_member.
-        APPEND ls_sel TO lt_sel.
-        CLEAR ls_dim_member.
-      ENDLOOP.
-      CLEAR lt_dim_member.
-    ENDIF.
-    ENDIF.
-  ENDLOOP.
+        READ TABLE IT_CV INTO LS_CV WITH KEY DIMENSION =  LS_DIM_NAME .
+        IF SY-SUBRC = 0 . "and ls_cv-USER_SPECIFIED = abap_true.
+          LOOP AT LS_CV-MEMBER INTO LS_DIM_MEMBER.
+            LS_SEL-DIMENSION = LS_CV-DIMENSION.
+            LS_SEL-ATTRIBUTE = 'ID'.
+            LS_SEL-SIGN = 'I'.
+            LS_SEL-OPTION = 'EQ'.
+            LS_SEL-LOW = LS_DIM_MEMBER.
+            APPEND LS_SEL TO LT_SEL.
+            CLEAR LS_DIM_MEMBER.
+          ENDLOOP.
+          CLEAR LT_DIM_MEMBER.
+        ENDIF.
+      ENDIF.
+    ENDLOOP.
 
 
 * else.
@@ -128,62 +128,62 @@ METHOD READ_MODEL_DATA.
 
 *---5. Create a reference structure similar to ct_data using the method -----*
 
-  TRY.
-      lo_model = cl_uj_model=>get_model( i_appset_id ).
-      lo_model->create_tx_data_ref(
-      EXPORTING
-      i_appl_name  = i_appl_id
-      i_type       = 'T'
-      it_dim_name  = lt_dim_name
-      if_tech_name = space
-      IMPORTING
-      er_data      = lo_dataref ).
-    CATCH cx_uj_static_check.
-  ENDTRY.
+    TRY.
+        LO_MODEL = CL_UJ_MODEL=>GET_MODEL( I_APPSET_ID ).
+        LO_MODEL->CREATE_TX_DATA_REF(
+        EXPORTING
+        I_APPL_NAME  = I_APPL_ID
+        I_TYPE       = 'T'
+        IT_DIM_NAME  = LT_DIM_NAME
+        IF_TECH_NAME = SPACE
+        IMPORTING
+        ER_DATA      = LO_DATAREF ).
+      CATCH CX_UJ_STATIC_CHECK.
+    ENDTRY.
 * Assigning the structure to table
-  ASSIGN lo_dataref->* TO <lt_query_result>.
+    ASSIGN LO_DATAREF->* TO <LT_QUERY_RESULT>.
 
 **Run  a query using method  '  run_rsdri_query ' **
-  TRY.
+    TRY.
 
-      lo_query = cl_ujo_query_factory=>get_query_adapter(
-      i_appset_id = i_appset_id
-      i_appl_id   = i_appl_id
-      ).
+        LO_QUERY = CL_UJO_QUERY_FACTORY=>GET_QUERY_ADAPTER(
+        I_APPSET_ID = I_APPSET_ID
+        I_APPL_ID   = I_APPL_ID
+        ).
 ** Run Query to populate ct_data based on dimensions , selection criteria **.
 
-      WHILE lv_end_of_data = rs_c_false.
+        WHILE LV_END_OF_DATA = RS_C_FALSE.
 
-        lo_query->run_rsdri_query(
+          LO_QUERY->RUN_RSDRI_QUERY(
 
-        EXPORTING
-        it_dim_name       =  lt_dim_name " BPC: Dimension List
-        it_range          =  lt_sel     " BPC: Selection condition
-        if_check_security = abap_false   " BPC: Generic indicator
+          EXPORTING
+          IT_DIM_NAME       =  LT_DIM_NAME " BPC: Dimension List
+          IT_RANGE          =  LT_SEL     " BPC: Selection condition
+          IF_CHECK_SECURITY = ABAP_FALSE   " BPC: Generic indicator
 
-        IMPORTING
-        et_data           = <lt_query_result>
-        e_end_of_data     = lv_end_of_data    " BPC: Last Data Package Yes/No
-        et_message        = lt_message    " BPC: Messages
-        ).
+          IMPORTING
+          ET_DATA           = <LT_QUERY_RESULT>
+          E_END_OF_DATA     = LV_END_OF_DATA    " BPC: Last Data Package Yes/No
+          ET_MESSAGE        = LT_MESSAGE    " BPC: Messages
+          ).
 
 *        LOOP AT <lt_query_result> ASSIGNING <ls_query_result>.
 *        APPEND <ls_query_result> TO output_data.
 *        ENDLOOP.
 
-     ENDWHILE.
-    CATCH cx_ujo_read.  " Exception of common read
+        ENDWHILE.
+      CATCH CX_UJO_READ.  " Exception of common read
 
-  ENDTRY.
+    ENDTRY.
 
 *-- 6.  Copy data into output_data ----*
 
-output_data = <lt_query_result>.
+    OUTPUT_DATA = <LT_QUERY_RESULT>.
 
-ENDMETHOD.
+  ENDMETHOD.
 
 
-  method TEST_AND_DEBUG.
+  METHOD TEST_AND_DEBUG.
 
 
 ***************VERSION CONTROL*******************************************
@@ -226,73 +226,73 @@ ENDMETHOD.
 *
 *
 ******************* PRE-SET FOR DEBUG ***********************************
-DATA:        I_APPSET_ID type UJ_APPSET_ID VALUE 'BAESAI_PLANNING',
-             I_APPL_ID type UJ_APPL_ID VALUE 'PROJECTFORECAST'.
+    DATA:        I_APPSET_ID TYPE UJ_APPSET_ID VALUE 'BAESAI_PLANNING',
+                 I_APPL_ID   TYPE UJ_APPL_ID VALUE 'PROJECTFORECAST'.
 *************************************************************************
 
-FIELD-SYMBOLS: <changing_data> TYPE STANDARD TABLE.
+    FIELD-SYMBOLS: <CHANGING_DATA> TYPE STANDARD TABLE.
 
 ************************ASSIGN STRUCTURE OF INCOMING MODEL **************
-DATA:  lt_dim_list type uja_t_dim_list,
- lo_appl_mgr type ref to if_uja_application_manager,
- lo_query type ref to if_ujo_query,
- lr_data type ref to data,
- ls_application type UJA_S_APPLICATION,
- ls_dimensions type UJA_S_DIMENSION,
- lt_message TYPE uj0_t_message.
+    DATA:  LT_DIM_LIST    TYPE UJA_T_DIM_LIST,
+           LO_APPL_MGR    TYPE REF TO IF_UJA_APPLICATION_MANAGER,
+           LO_QUERY       TYPE REF TO IF_UJO_QUERY,
+           LR_DATA        TYPE REF TO DATA,
+           LS_APPLICATION TYPE UJA_S_APPLICATION,
+           LS_DIMENSIONS  TYPE UJA_S_DIMENSION,
+           LT_MESSAGE     TYPE UJ0_T_MESSAGE.
 
-lo_appl_mgr = cl_uja_bpc_admin_factory=>get_application_manager(
- i_appset_id = i_appset_id
- i_application_id = i_appl_id ).
-clear ls_application.
-lo_appl_mgr->GET(
- exporting
- IF_WITH_MEASURES = ABAP_FALSE " BPC: Generic indicator
- IF_SUMMARY = ABAP_FALSE " BPC: Generic indicator
- importing
- ES_APPLICATION = ls_application ). " Applications table type
+    LO_APPL_MGR = CL_UJA_BPC_ADMIN_FACTORY=>GET_APPLICATION_MANAGER(
+     I_APPSET_ID = I_APPSET_ID
+     I_APPLICATION_ID = I_APPL_ID ).
+    CLEAR LS_APPLICATION.
+    LO_APPL_MGR->GET(
+     EXPORTING
+     IF_WITH_MEASURES = ABAP_FALSE " BPC: Generic indicator
+     IF_SUMMARY = ABAP_FALSE " BPC: Generic indicator
+     IMPORTING
+     ES_APPLICATION = LS_APPLICATION ). " Applications table type
 
- refresh lt_dim_list.
-loop at ls_application-dimensions into ls_dimensions.
- append ls_dimensions-dimension to lt_dim_list.
-endloop.
-lo_appl_mgr->create_data_ref(
- EXPORTING
- i_data_type = 'T'
- it_dim_name = lt_dim_list
- if_tech_name = abap_false
- if_signeddata = abap_true
- IMPORTING
- er_data = lr_data ).
+    REFRESH LT_DIM_LIST.
+    LOOP AT LS_APPLICATION-DIMENSIONS INTO LS_DIMENSIONS.
+      APPEND LS_DIMENSIONS-DIMENSION TO LT_DIM_LIST.
+    ENDLOOP.
+    LO_APPL_MGR->CREATE_DATA_REF(
+     EXPORTING
+     I_DATA_TYPE = 'T'
+     IT_DIM_NAME = LT_DIM_LIST
+     IF_TECH_NAME = ABAP_FALSE
+     IF_SIGNEDDATA = ABAP_TRUE
+     IMPORTING
+     ER_DATA = LR_DATA ).
 
-ASSIGN lr_data->* to <changing_data>.
+    ASSIGN LR_DATA->* TO <CHANGING_DATA>.
 *****************************************************************************************
 
 *****************************************************************************************
 *SAMPLE CALLS
 *****************************************************************************************
 
-CALL METHOD ZCL_BPC_COMMON=>READ_MODEL_DATA
+    CALL METHOD ZCL_BPC_COMMON=>READ_MODEL_DATA
       EXPORTING
-        I_APPSET_ID = i_appset_id
-        I_APPL_ID   = i_appl_id
-*        IT_CV       =
-*        IT_SEL      =
+        I_APPSET_ID = I_APPSET_ID
+        I_APPL_ID   = I_APPL_ID
+*       IT_CV       =
+*       IT_SEL      =
       IMPORTING
-        OUTPUT_DATA = <changing_data>.
+        OUTPUT_DATA = <CHANGING_DATA>.
 
 
 
-CALL METHOD ZCL_BPC_COMMON=>WRITE_MODEL_DATA
-  EXPORTING
-    I_APPSET_ID      = i_appset_id
-    I_APPL_ID        = i_appl_id
-"    TARGET_MODEL     =
-    INPUT_DATA       = <changing_data>
+    CALL METHOD ZCL_BPC_COMMON=>WRITE_MODEL_DATA
+      EXPORTING
+        I_APPSET_ID = I_APPSET_ID
+        I_APPL_ID   = I_APPL_ID
+   "    TARGET_MODEL     =
+        INPUT_DATA  = <CHANGING_DATA>
 *  IMPORTING
-*    ET_MESSAGE       =
-*    ET_ERROR_RECORDS =
-    .
+*       ET_MESSAGE  =
+*       ET_ERROR_RECORDS =
+      .
 
 ************************ CODE SNIPPET TO CONVERT DATA BETWEEN MODELS **********************
 ***** Based on ENVIRONMENSHELL Dimensionality *********************************************
@@ -405,111 +405,103 @@ CALL METHOD ZCL_BPC_COMMON=>WRITE_MODEL_DATA
 
 
 
-  endmethod.
+  ENDMETHOD.
 
 
-METHOD WRITE_MODEL_DATA.
+  METHOD WRITE_MODEL_DATA.
 
 
-   DATA:   model TYPE UJ_APPL_ID.
+    DATA:   MODEL TYPE UJ_APPL_ID.
 
-  FIELD-SYMBOLS: <commit_data> type standard table.
+    FIELD-SYMBOLS: <COMMIT_DATA> TYPE STANDARD TABLE.
 
 *Check if Target Model is empty.
 *If it is empty this means the sender and target are the same
 *No need to have different structure
 
-IF target_model IS INITIAL.
+    IF TARGET_MODEL IS INITIAL.
 
-<commit_data> = input_data.
-model = i_appl_id.
+      ASSIGN INPUT_DATA TO <COMMIT_DATA>.
+      MODEL = I_APPL_ID.
 
-ELSE.
+    ELSE.
 
-DATA:  lt_dim_list type uja_t_dim_list,
- lo_appl_mgr type ref to if_uja_application_manager,
- lr_data type ref to data,
- ls_application type UJA_S_APPLICATION,
- ls_dimensions type UJA_S_DIMENSION.
+      DATA:  LT_DIM_LIST    TYPE UJA_T_DIM_LIST,
+             LO_APPL_MGR    TYPE REF TO IF_UJA_APPLICATION_MANAGER,
+             LR_DATA        TYPE REF TO DATA,
+             LS_APPLICATION TYPE UJA_S_APPLICATION,
+             LS_DIMENSIONS  TYPE UJA_S_DIMENSION.
 
-model = target_model.
+      MODEL = TARGET_MODEL.
 
-lo_appl_mgr = cl_uja_bpc_admin_factory=>get_application_manager(
- i_appset_id = i_appset_id
- i_application_id = i_appl_id ).
-clear ls_application.
-lo_appl_mgr->GET(
- exporting
- IF_WITH_MEASURES = ABAP_FALSE " BPC: Generic indicator
- IF_SUMMARY = ABAP_FALSE " BPC: Generic indicator
- importing
- ES_APPLICATION = ls_application ). " Applications table type
+      LO_APPL_MGR = CL_UJA_BPC_ADMIN_FACTORY=>GET_APPLICATION_MANAGER(
+       I_APPSET_ID = I_APPSET_ID
+       I_APPLICATION_ID = I_APPL_ID ).
+      CLEAR LS_APPLICATION.
+      LO_APPL_MGR->GET(
+       EXPORTING
+       IF_WITH_MEASURES = ABAP_FALSE " BPC: Generic indicator
+       IF_SUMMARY = ABAP_FALSE " BPC: Generic indicator
+       IMPORTING
+       ES_APPLICATION = LS_APPLICATION ). " Applications table type
 
- refresh lt_dim_list.
-loop at ls_application-dimensions into ls_dimensions.
- append ls_dimensions-dimension to lt_dim_list.
-endloop.
-lo_appl_mgr->create_data_ref(
- EXPORTING
- i_data_type = 'T'
- it_dim_name = lt_dim_list
- if_tech_name = abap_false
- if_signeddata = abap_true
- IMPORTING
- er_data = lr_data ).
+      REFRESH LT_DIM_LIST.
+      LOOP AT LS_APPLICATION-DIMENSIONS INTO LS_DIMENSIONS.
+        APPEND LS_DIMENSIONS-DIMENSION TO LT_DIM_LIST.
+      ENDLOOP.
+      LO_APPL_MGR->CREATE_DATA_REF(
+       EXPORTING
+       I_DATA_TYPE = 'T'
+       IT_DIM_NAME = LT_DIM_LIST
+       IF_TECH_NAME = ABAP_FALSE
+       IF_SIGNEDDATA = ABAP_TRUE
+       IMPORTING
+       ER_DATA = LR_DATA ).
 
-ASSIGN lr_data->* to <commit_data>.
+      ASSIGN LR_DATA->* TO <COMMIT_DATA>.
 
-ENDIF.
-
-
-
+    ENDIF.
 
 
 *************************************************
 ***** WRITE BACK ********************************
-DATA: lo_ujo_wb TYPE REF TO if_ujo_write_back,
- ls_wb_param TYPE if_ujo_write_back=>gs_wb_param,
- ls_wb_status TYPE ujo_s_wb_status,
- ls_work_status TYPE ujr_s_work_status,
- ls_audit TYPE ujr_s_update_audit,
- lv_measure TYPE uj_dim_member.
+    DATA: LO_UJO_WB      TYPE REF TO IF_UJO_WRITE_BACK,
+          LS_WB_PARAM    TYPE IF_UJO_WRITE_BACK=>GS_WB_PARAM,
+          LS_WB_STATUS   TYPE UJO_S_WB_STATUS,
+          LS_WORK_STATUS TYPE UJR_S_WORK_STATUS,
+          LS_AUDIT       TYPE UJR_S_UPDATE_AUDIT,
+          LV_MEASURE     TYPE UJ_DIM_MEMBER.
 
-FIELD-SYMBOLS: <lt_error_records> TYPE ANY TABLE.
+    LS_WORK_STATUS-MODULE_ID = UJ00_C_MOD_NAME_DM.
+    LS_WORK_STATUS-BLOCKSTATUS = 0.
+    LS_AUDIT-ACTCODE = UJU0_CS_ACT_CODE-LOGIC_EXE.
+    LO_UJO_WB = CL_UJO_WB_FACTORY=>CREATE_WRITE_BACK( ).
+    LS_WB_PARAM = CL_UJO_WB_FACTORY=>DEFAULT_WB_PARAM( ).
+    LS_WB_PARAM-WORK_STATUS = LS_WORK_STATUS.
+    LS_WB_PARAM-DEFAULT_LOGIC = ABAP_FALSE.
+    LS_WB_PARAM-UPDATE_AUDIT = ABAP_TRUE.
+    LS_WB_PARAM-DUPLICATE = ABAP_TRUE.
+    LS_WB_PARAM-MDATA_CHECK = ABAP_FALSE.
+    LS_WB_PARAM-SIGN_TRANS = ABAP_TRUE.
+    LS_WB_PARAM-MEASURES_FORMULA = LV_MEASURE.
+    LS_WB_PARAM-AUDIT_INFO = LS_AUDIT.
+    LS_WB_PARAM-WORK_STATUS = LS_WORK_STATUS.
 
-create data lr_data like <commit_data>.
-assign lr_data->* to <lt_error_records>.
-
-ls_work_status-module_id = uj00_c_mod_name_dm.
-ls_work_status-blockstatus = 0.
-ls_audit-actcode = uju0_cs_act_code-logic_exe.
-lo_ujo_wb = cl_ujo_wb_factory=>create_write_back( ).
-ls_wb_param = cl_ujo_wb_factory=>default_wb_param( ).
-ls_wb_param-work_status = ls_work_status.
-ls_wb_param-default_logic = abap_false.
-ls_wb_param-update_audit = abap_true.
-ls_wb_param-duplicate = abap_true.
-ls_wb_param-mdata_check = abap_false.
-ls_wb_param-sign_trans = abap_true.
-ls_wb_param-measures_formula = lv_measure.
-ls_wb_param-audit_info = ls_audit.
-ls_wb_param-work_status = ls_work_status.
-
-lo_ujo_wb->write_back(
-EXPORTING
- i_appset_id = i_appset_id
- i_appl_id = model
- is_wb_param = ls_wb_param
- it_records = <commit_data>
-IMPORTING
- es_wb_status = ls_wb_status
- et_error_records = et_error_records
- et_message = et_message ).
+    LO_UJO_WB->WRITE_BACK(
+    EXPORTING
+     I_APPSET_ID = I_APPSET_ID
+     I_APPL_ID = MODEL
+     IS_WB_PARAM = LS_WB_PARAM
+     IT_RECORDS = <COMMIT_DATA>
+    IMPORTING
+     ES_WB_STATUS = LS_WB_STATUS
+     ET_ERROR_RECORDS = ET_ERROR_RECORDS
+     ET_MESSAGE = ET_MESSAGE ).
 
 
 
 *************************************************
 ***** WRITE BACK ********************************
 
-ENDMETHOD.
+  ENDMETHOD.
 ENDCLASS.
