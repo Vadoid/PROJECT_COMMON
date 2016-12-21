@@ -3,6 +3,7 @@
 #Common Class (ZCL_BPC_COMMON)
 
 **VERSION CONTROL**
+
 **v.001 VZ - December 2016**
 
 **INFORMATION ABOUT CLASS**
@@ -40,6 +41,7 @@
     be reused in READ_MODEL_DATA filter.
 	
 **FAIR USE**
+
 Please feel free to reuse this class in your implementations. Just drop me a quick line 
 about your project.
 
