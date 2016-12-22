@@ -1,52 +1,64 @@
-CLASS ZCL_BPC_COMMON DEFINITION
-  PUBLIC
-  FINAL
-  CREATE PUBLIC .
+class ZCL_BPC_COMMON definition
+  public
+  final
+  create public .
 
-  PUBLIC SECTION.
+public section.
 
-    CLASS-METHODS TEST_AND_DEBUG.
+  class-methods TEST_AND_DEBUG .
 *    changing
 *      !CHANGING_DATA type STANDARD TABLE optional .
-    CLASS-METHODS READ_MODEL_DATA
-      IMPORTING
-        !I_APPSET_ID TYPE UJ_APPSET_ID
-        !I_APPL_ID   TYPE UJ_APPL_ID
-        !IT_CV       TYPE UJK_T_CV OPTIONAL
-        !IT_SEL      TYPE UJ0_T_SEL OPTIONAL
-      EXPORTING
-        !OUTPUT_DATA TYPE STANDARD TABLE .
-
-    CLASS-METHODS WRITE_MODEL_DATA
-      IMPORTING
-        !I_APPSET_ID      TYPE UJ_APPSET_ID
-        !I_APPL_ID        TYPE UJ_APPL_ID
-        !TARGET_MODEL     TYPE UJ_APPL_ID OPTIONAL
-        !INPUT_DATA       TYPE STANDARD TABLE
-      EXPORTING
-        !ET_MESSAGE       TYPE UJ0_T_MESSAGE
-        !ET_ERROR_RECORDS TYPE STANDARD TABLE .
-
-    CLASS-METHODS CHANGE_LOG_USER
-      IMPORTING
-        !I_APPSET_ID TYPE UJ_APPSET_ID
-        !I_APPL_ID   TYPE UJ_APPL_ID .
-    CLASS-METHODS GET_MESSAGE_TEXT
-      IMPORTING
-        !I_MSGNO      TYPE SYMSGNO OPTIONAL
-        !I_MSGV1      TYPE SYMSGV OPTIONAL
-        !I_MSGV2      TYPE SYMSGV OPTIONAL
-        !I_MSGV3      TYPE SYMSGV OPTIONAL
-        !I_MSGV4      TYPE SYMSGV OPTIONAL
-        !I_MSGTYPE    TYPE SYMSGTY OPTIONAL
-      RETURNING
-        VALUE(R_TEXT) TYPE STRING .
-    CLASS-METHODS SWAP_USER
-      IMPORTING
-        !I_APPSET_ID TYPE UJ_APPSET_ID
-        !I_APPL_ID   TYPE UJ_APPL_ID
-        !I_USER_ID   TYPE UJ_LARGE_STRING .
-
+  class-methods READ_MODEL_DATA
+    importing
+      !I_APPSET_ID type UJ_APPSET_ID
+      !I_APPL_ID type UJ_APPL_ID
+      !IT_CV type UJK_T_CV optional
+      !IT_SEL type UJ0_T_SEL optional
+    exporting
+      !OUTPUT_DATA type STANDARD TABLE .
+  class-methods WRITE_MODEL_DATA
+    importing
+      !I_APPSET_ID type UJ_APPSET_ID
+      !I_APPL_ID type UJ_APPL_ID
+      !TARGET_MODEL type UJ_APPL_ID optional
+      !INPUT_DATA type STANDARD TABLE
+    exporting
+      !ET_MESSAGE type UJ0_T_MESSAGE
+      !ET_ERROR_RECORDS type STANDARD TABLE .
+  class-methods READ_MASTER_DATA
+    importing
+      !I_APPSET_ID type UJ_APPSET_ID
+      !I_DIMENSION type UJ_DIM_NAME
+    exporting
+      !OUTPUT_R_DATA type ref to DATA
+    changing
+      !LT_SEL type UJ0_T_SEL .
+  class-methods READ_MASTER_DATA_HIERARCHY
+    importing
+      !I_APPSET_ID type UJ_APPSET_ID
+      !I_DIMENSION type UJ_DIM_NAME
+      !I_PARENT_MBR type UJ_DIM_MEMBER
+    exporting
+      !OUTPUT_DATA type STANDARD TABLE .
+  class-methods CHANGE_LOG_USER
+    importing
+      !I_APPSET_ID type UJ_APPSET_ID
+      !I_APPL_ID type UJ_APPL_ID .
+  class-methods GET_MESSAGE_TEXT
+    importing
+      !I_MSGNO type SYMSGNO optional
+      !I_MSGV1 type SYMSGV optional
+      !I_MSGV2 type SYMSGV optional
+      !I_MSGV3 type SYMSGV optional
+      !I_MSGV4 type SYMSGV optional
+      !I_MSGTYPE type SYMSGTY optional
+    returning
+      value(R_TEXT) type STRING .
+  class-methods SWAP_USER
+    importing
+      !I_APPSET_ID type UJ_APPSET_ID
+      !I_APPL_ID type UJ_APPL_ID
+      !I_USER_ID type UJ_LARGE_STRING .
   PROTECTED SECTION.
   PRIVATE SECTION.
 
@@ -54,8 +66,412 @@ CLASS ZCL_BPC_COMMON DEFINITION
 ENDCLASS.
 
 
+
 CLASS ZCL_BPC_COMMON IMPLEMENTATION.
 
+
+  METHOD CHANGE_LOG_USER.
+************************************ CHANGE_LOG_USER START ***************************************
+
+    DATA: CONTEXT_RO TYPE REF TO IF_UJ_CONTEXT,
+          L_LOG      TYPE STRING,
+          L_PATH     TYPE STRING,
+          L_STRING1  TYPE STRING,
+          L_STRING2  TYPE STRING,
+          L_STRING3  TYPE STRING,
+          LENGTH     TYPE I,
+          L_PATH2    TYPE UJ_DOCNAME,
+          RESULT_TAB TYPE MATCH_RESULT_TAB,
+          LS_RESULT  TYPE MATCH_RESULT,
+          L_USER     TYPE UJ0_S_USER.
+
+
+* Get the current context details
+    CALL METHOD CL_UJ_CONTEXT=>GET_CUR_CONTEXT
+      RECEIVING
+        RO_CONTEXT = CONTEXT_RO.
+    CONTEXT_RO->SWITCH_TO_SRVADMIN( ).
+
+* Assign the user details
+    L_USER = CONTEXT_RO->DS_USER.
+    IF L_USER-USER_ID NE SY-UNAME.
+      L_USER-USER_ID = SY-UNAME.
+
+
+      TRY.
+          CALL METHOD CL_UJ_CONTEXT=>SET_CUR_CONTEXT
+            EXPORTING
+              I_APPSET_ID = I_APPSET_ID
+              IS_USER     = L_USER
+              I_APPL_ID   = I_APPL_ID.
+
+        CATCH CX_UJ_OBJ_NOT_FOUND .
+          L_LOG = GET_MESSAGE_TEXT( I_MSGTYPE = 'E'  I_MSGNO = SY-MSGNO ).
+          CL_UJK_LOGGER=>LOG( I_OBJECT = L_LOG ).
+      ENDTRY.
+
+      L_PATH = CL_UJK_MODEL=>G_LOG_PATH.
+      FIND SY-UNAME IN L_PATH.
+      IF SY-SUBRC NE 0.
+
+        SPLIT L_PATH AT '\PRIVATEPUBLICATIONS\' INTO L_STRING1 L_STRING2.
+        FIND FIRST OCCURRENCE OF '\' IN L_STRING2  RESULTS RESULT_TAB.
+        READ TABLE RESULT_TAB INTO LS_RESULT INDEX 1.
+        LENGTH = STRLEN( L_STRING2 ) - LS_RESULT-OFFSET.
+        L_STRING3 = L_STRING2+LS_RESULT-OFFSET(LENGTH).
+        CONCATENATE L_STRING1 '\PRIVATEPUBLICATIONS\' SY-UNAME L_STRING3 INTO L_PATH2.
+        CL_UJK_MODEL=>G_LOG_PATH = L_PATH2.
+        TRY .
+            CL_UJK_LOGGER=>SAVE_LOG( I_PATH = L_PATH2 ).
+          CATCH CX_UJ_STATIC_CHECK.
+
+        ENDTRY.
+
+
+      ENDIF.
+    ENDIF.
+
+************************************ CHANGE_LOG_USER END ******************************************
+  ENDMETHOD.
+
+
+  METHOD GET_MESSAGE_TEXT.
+************************************ GET_MESSAGE_TEXT START ***************************************
+
+    DATA:
+      L_MSGTYPE       TYPE SY-MSGTY VALUE 'I',
+      L_MSGV1         TYPE SY-MSGV1,
+      L_MSGV2         TYPE SY-MSGV2,
+      L_MSGV3         TYPE SY-MSGV3,
+      L_MSGV4         TYPE SY-MSGV4,
+      P_MESSAGE_CLASS TYPE SY-MSGID VALUE 'UJD_EXCEPTION'.
+
+
+    IF I_MSGTYPE IS SUPPLIED.
+      L_MSGTYPE = I_MSGTYPE.
+    ENDIF.
+
+    IF I_MSGV1 IS SUPPLIED AND I_MSGV2 IS SUPPLIED AND I_MSGV3 IS SUPPLIED AND I_MSGV4 IS SUPPLIED.
+      L_MSGV1 = I_MSGV1. L_MSGV2 = I_MSGV2. L_MSGV3 = I_MSGV3. L_MSGV4 = I_MSGV4.
+      MESSAGE ID P_MESSAGE_CLASS TYPE L_MSGTYPE NUMBER I_MSGNO
+            INTO R_TEXT
+            WITH L_MSGV1 L_MSGV2 L_MSGV3 L_MSGV4.
+    ELSEIF I_MSGV1 IS SUPPLIED AND I_MSGV2 IS SUPPLIED AND I_MSGV3 IS SUPPLIED AND I_MSGV4 IS NOT SUPPLIED.
+      L_MSGV1 = I_MSGV1. L_MSGV2 = I_MSGV2. L_MSGV3 = I_MSGV3.
+      MESSAGE ID P_MESSAGE_CLASS TYPE L_MSGTYPE NUMBER I_MSGNO
+            INTO R_TEXT
+            WITH L_MSGV1 L_MSGV2 L_MSGV3.
+    ELSEIF I_MSGV1 IS SUPPLIED AND I_MSGV2 IS SUPPLIED AND I_MSGV3 IS NOT SUPPLIED AND I_MSGV4 IS NOT SUPPLIED.
+      L_MSGV1 = I_MSGV1. L_MSGV2 = I_MSGV2.
+      MESSAGE ID P_MESSAGE_CLASS TYPE L_MSGTYPE NUMBER I_MSGNO
+            INTO R_TEXT
+            WITH L_MSGV1 L_MSGV2.
+    ELSEIF I_MSGV1 IS SUPPLIED AND I_MSGV2 IS NOT SUPPLIED AND I_MSGV3 IS NOT SUPPLIED AND I_MSGV4 IS NOT SUPPLIED.
+      L_MSGV1 = I_MSGV1.
+      MESSAGE ID P_MESSAGE_CLASS TYPE L_MSGTYPE NUMBER I_MSGNO
+            INTO R_TEXT
+            WITH L_MSGV1.
+    ELSEIF I_MSGV1 IS NOT SUPPLIED AND I_MSGV2 IS NOT SUPPLIED AND I_MSGV3 IS NOT SUPPLIED AND I_MSGV4 IS NOT SUPPLIED.
+      MESSAGE ID P_MESSAGE_CLASS TYPE L_MSGTYPE NUMBER I_MSGNO
+            INTO R_TEXT.
+    ELSE.
+      "error error
+    ENDIF.
+
+************************************ GET_MESSAGE_TEXT END ***************************************
+  ENDMETHOD.
+
+
+  METHOD read_master_data.
+
+
+DATA: lo_dim TYPE REF TO cl_uja_dim,
+      lr_dim_data TYPE REF TO if_uja_dim_data,
+      lt_attr_name TYPE uja_t_attr_name,
+*      lt_sel TYPE uj0_t_sel,
+      ls_sel TYPE uj0_s_sel,
+      lr_data TYPE REF TO data,
+      ls_emp TYPE REF TO data.
+
+FIELD-SYMBOLS: <lt_dimesnion_data> TYPE STANDARD TABLE.
+*               <ls_dimension_data> TYPE ANY.
+
+REFRESH: lt_attr_name.
+
+TRY .
+
+    CREATE OBJECT lo_dim
+      EXPORTING
+        i_appset_id = i_appset_id
+        i_dimension = i_dimension.
+
+  CATCH cx_uja_admin_error .
+ENDTRY.
+
+lr_dim_data = lo_dim.
+
+" Append the list of attribute(s) for which the master data is generated
+*APPEND: 'ID' TO lt_attr_name.
+
+" Bind the condition data to lt_sel table, this will become selection criteria
+" analogous to the WHERE clause of a DB SELECT statement
+
+* IN THIS EXAMPLE LT_SEL IS CHANGING PARAM, WHICH MIGHT NOT BE THE CASE IN THE FINAL
+* IMPLEMENTATION
+
+IF lt_sel is INITIAL.
+
+ls_sel-dimension = i_dimension.
+ls_sel-attribute = 'CALC'.
+ls_sel-sign = 'I'.
+ls_sel-option = 'EQ'.
+ls_sel-low = 'N'.
+APPEND ls_sel TO lt_sel.
+
+ENDIF.
+
+" GET DIMENSION MEMBERS
+  TRY.
+    CALL METHOD lr_dim_data->read_mbr_data
+      EXPORTING
+        it_attr_list = lt_attr_name    "attribute list
+        it_sel       = lt_sel          "condition data
+      IMPORTING
+        er_data      = lr_data.        "reference of master data table
+
+  CATCH cx_uja_admin_error .
+ENDTRY.
+
+  "Assign the referenced memory area to a field-symbol
+* ASSIGN lr_data->* TO <lt_dimesnion_data>.
+
+OUTPUT_R_DATA = LR_DATA.
+
+*CREATE DATA LS_EMP LIKE LINE OF <LT_DIMESNION_DATA>.
+*ASSIGN LS_EMP->* TO <LS_DIMENSION_DATA>.
+
+
+  ENDMETHOD.
+
+
+  METHOD read_master_data_hierarchy.
+
+  DATA:    lo_dim TYPE REF TO cl_uja_dim,
+           lr_data TYPE REF TO data,
+           lr_dim_data TYPE REF TO if_uja_dim_data,
+           lt_base_en TYPE uja_t_dim_member.
+TRY.
+    CREATE OBJECT lo_dim
+      EXPORTING
+        i_appset_id = i_appset_id
+        i_dimension = i_dimension.
+
+  CATCH cx_uja_admin_error.
+ENDTRY.
+
+lr_dim_data = lo_dim.
+
+"GET THE CHILD NODES
+CALL METHOD lr_dim_data->get_children_mbr
+  EXPORTING
+    i_parent_mbr     = i_parent_mbr
+    if_only_base_mbr = 'X'
+  IMPORTING
+    et_member        = lt_base_en.
+
+OUTPUT_DATA = lt_base_en.
+
+
+
+  ENDMETHOD.
+
+
+  METHOD READ_MODEL_DATA.
+************************************ READ_MODEL_DATA START ****************************************
+
+** 1. **--------- Data Declarations -------**
+    DATA: LT_SEL         TYPE UJ0_T_SEL, "Selection criteria table
+          LS_SEL         TYPE UJ0_S_SEL,
+          LS_CV          TYPE UJK_S_CV,      " Logic Current View
+          LT_DIM_MEMBER  TYPE UJA_T_DIM_MEMBER,
+          LS_DIM_MEMBER  LIKE LINE OF LT_DIM_MEMBER,
+          LO_APPL        TYPE REF TO CL_UJA_APPLICATION,
+          LT_APPL_DIM    TYPE UJA_T_APPL_DIM,
+          LS_APPL_DIM    LIKE LINE OF LT_APPL_DIM,
+          LT_DIM_NAME    TYPE UJQ_T_DIM,
+          LS_DIM_NAME    LIKE LINE OF LT_DIM_NAME,
+          LO_MODEL       TYPE REF TO IF_UJ_MODEL,
+          LO_DATAREF     TYPE REF TO DATA,
+          LO_QUERY       TYPE REF TO IF_UJO_QUERY,
+          LV_END_OF_DATA TYPE RS_BOOL,
+          LT_MESSAGE     TYPE UJ0_T_MESSAGE.
+
+    FIELD-SYMBOLS:  <LT_QUERY_RESULT> TYPE STANDARD TABLE.
+
+**---------------End of Data Declaration----------------------**
+
+
+*---- 2. Create an object  for  the input parameters such i_appset_id,  i_appl_id.-------*
+
+    CREATE OBJECT LO_APPL
+      EXPORTING
+        I_APPSET_ID      = I_APPSET_ID
+        I_APPLICATION_ID = I_APPL_ID.
+
+*---- 3. Use this object to read the dimension for the  i_appl_id  & Append ' Measures ' to the dimension table -----*
+
+    REFRESH LT_APPL_DIM.
+    LO_APPL->GET_APPL_DIM(
+    EXPORTING
+    I_APPL_ID   = I_APPL_ID
+    IMPORTING
+    ET_APPL_DIM = LT_APPL_DIM ). "dimension table
+    REFRESH LT_DIM_NAME.
+
+**Populate dimension table 'lt_dim_name'.
+
+    LOOP AT LT_APPL_DIM INTO LS_APPL_DIM.
+      LS_DIM_NAME = LS_APPL_DIM-DIMENSION.
+      APPEND LS_DIM_NAME TO LT_DIM_NAME.
+      CLEAR LS_DIM_NAME.
+    ENDLOOP.
+
+* Include ' Measures ' as dimension table *
+*  ls_dim_name  = 'MEASURES'.
+*  APPEND ls_dim_name TO lt_dim_name.
+*  SORT lt_dim_name.
+
+*--4. Prepare Selection range table say for ex :  'lt_sel '  *.
+* if it_sel[] is initial.
+    LOOP AT  LT_DIM_NAME INTO LS_DIM_NAME  .
+      CLEAR : LS_CV .
+
+      READ TABLE IT_SEL INTO LS_SEL WITH KEY DIMENSION = LS_DIM_NAME .
+      IF SY-SUBRC = 0.
+        LOOP AT IT_SEL INTO LS_SEL WHERE DIMENSION = LS_DIM_NAME .
+          APPEND LS_SEL TO LT_SEL.
+        ENDLOOP.
+        CONTINUE.
+      ENDIF.
+* Read from scope for each dimension from current view table*
+      IF IT_CV IS NOT INITIAL.
+
+        READ TABLE IT_CV INTO LS_CV WITH KEY DIMENSION =  LS_DIM_NAME .
+        IF SY-SUBRC = 0 . "and ls_cv-USER_SPECIFIED = abap_true.
+          LOOP AT LS_CV-MEMBER INTO LS_DIM_MEMBER.
+            LS_SEL-DIMENSION = LS_CV-DIMENSION.
+            LS_SEL-ATTRIBUTE = 'ID'.
+            LS_SEL-SIGN = 'I'.
+            LS_SEL-OPTION = 'EQ'.
+            LS_SEL-LOW = LS_DIM_MEMBER.
+            APPEND LS_SEL TO LT_SEL.
+            CLEAR LS_DIM_MEMBER.
+          ENDLOOP.
+          CLEAR LT_DIM_MEMBER.
+        ENDIF.
+      ENDIF.
+    ENDLOOP.
+
+
+* else.
+*   lt_sel[] = it_sel[].
+* endif.
+
+*---5. Create a reference structure similar to ct_data using the method -----*
+
+    TRY.
+        LO_MODEL = CL_UJ_MODEL=>GET_MODEL( I_APPSET_ID ).
+        LO_MODEL->CREATE_TX_DATA_REF(
+        EXPORTING
+        I_APPL_NAME  = I_APPL_ID
+        I_TYPE       = 'T'
+        IT_DIM_NAME  = LT_DIM_NAME
+        IF_TECH_NAME = SPACE
+        IMPORTING
+        ER_DATA      = LO_DATAREF ).
+      CATCH CX_UJ_STATIC_CHECK.
+    ENDTRY.
+* Assigning the structure to table
+    ASSIGN LO_DATAREF->* TO <LT_QUERY_RESULT>.
+
+**Run  a query using method  '  run_rsdri_query ' **
+    TRY.
+
+        LO_QUERY = CL_UJO_QUERY_FACTORY=>GET_QUERY_ADAPTER(
+        I_APPSET_ID = I_APPSET_ID
+        I_APPL_ID   = I_APPL_ID
+        ).
+** Run Query to populate ct_data based on dimensions , selection criteria **.
+
+        WHILE LV_END_OF_DATA = RS_C_FALSE.
+
+          LO_QUERY->RUN_RSDRI_QUERY(
+
+          EXPORTING
+          IT_DIM_NAME       =  LT_DIM_NAME " BPC: Dimension List
+          IT_RANGE          =  LT_SEL     " BPC: Selection condition
+          IF_CHECK_SECURITY = ABAP_FALSE   " BPC: Generic indicator
+
+          IMPORTING
+          ET_DATA           = <LT_QUERY_RESULT>
+          E_END_OF_DATA     = LV_END_OF_DATA    " BPC: Last Data Package Yes/No
+          ET_MESSAGE        = LT_MESSAGE    " BPC: Messages
+          ).
+
+*        LOOP AT <lt_query_result> ASSIGNING <ls_query_result>.
+*        APPEND <ls_query_result> TO output_data.
+*        ENDLOOP.
+
+        ENDWHILE.
+      CATCH CX_UJO_READ.  " Exception of common read
+
+    ENDTRY.
+
+*-- 6.  Copy data into output_data ----*
+
+    OUTPUT_DATA = <LT_QUERY_RESULT>.
+
+************************************ READ_MODEL_DATA END ******************************************
+  ENDMETHOD.
+
+
+  METHOD SWAP_USER.
+************************************ SWAP_USER START ********************************************
+
+    DATA: CONTEXT_RO TYPE REF TO IF_UJ_CONTEXT,
+          L_LOG      TYPE STRING,
+          LS_PARAM   TYPE UJK_S_SCRIPT_LOGIC_HASHENTRY,
+          L_USER_ID  TYPE STRING,
+          L_USER     TYPE UJ0_S_USER.
+
+    L_USER_ID = I_USER_ID.
+
+
+* Get the current context details
+    CALL METHOD CL_UJ_CONTEXT=>GET_CUR_CONTEXT
+      RECEIVING
+        RO_CONTEXT = CONTEXT_RO.
+    CONTEXT_RO->SWITCH_TO_SRVADMIN( ).
+
+* Assign the user details
+    L_USER = CONTEXT_RO->DS_USER.
+    L_USER-USER_ID = L_USER_ID.
+
+    TRY.
+        CALL METHOD CL_UJ_CONTEXT=>SET_CUR_CONTEXT
+          EXPORTING
+            I_APPSET_ID = I_APPSET_ID
+            IS_USER     = L_USER
+            I_APPL_ID   = I_APPL_ID.
+
+      CATCH CX_UJ_OBJ_NOT_FOUND .
+        L_LOG = GET_MESSAGE_TEXT( I_MSGTYPE = 'E'  I_MSGNO = SY-MSGNO ).
+        CL_UJK_LOGGER=>LOG( I_OBJECT = L_LOG ).
+    ENDTRY.
+
+************************************ SWAP_USER END ***************************************
+
+  ENDMETHOD.
 
 
   METHOD TEST_AND_DEBUG.
@@ -103,10 +519,19 @@ CLASS ZCL_BPC_COMMON IMPLEMENTATION.
 *
 ******************* PRE-SET FOR DEBUG ***********************************
     DATA:        I_APPSET_ID TYPE UJ_APPSET_ID VALUE 'BAESAI_PLANNING',
-                 I_APPL_ID   TYPE UJ_APPL_ID VALUE 'PROJECTFORECAST'.
+                 I_APPL_ID   TYPE UJ_APPL_ID VALUE 'PROJECTFORECAST',
+                 lt_sel TYPE uj0_t_sel,
+                            LD_R_DATA        TYPE REF TO DATA,
+
+           ls_sel TYPE uj0_s_sel,
+           LH_DATA TYPE uja_t_dim_member,
+           LS_DATA TYPE uja_s_dim_member.
+
 *************************************************************************
 
-    FIELD-SYMBOLS: <CHANGING_DATA> TYPE STANDARD TABLE.
+    FIELD-SYMBOLS: <CHANGING_DATA> TYPE STANDARD TABLE,
+                   <dimension_data> TYPE STANDARD TABLE,
+                   <dimension_hier_members> TYPE STANDARD TABLE.
 
 ************************ASSIGN STRUCTURE OF INCOMING MODEL **************
     DATA:  LT_DIM_LIST    TYPE UJA_T_DIM_LIST,
@@ -148,27 +573,74 @@ CLASS ZCL_BPC_COMMON IMPLEMENTATION.
 *SAMPLE CALLS
 *****************************************************************************************
 
-    CALL METHOD ZCL_BPC_COMMON=>READ_MODEL_DATA
+      CALL METHOD ZCL_BPC_COMMON=>READ_MASTER_DATA_HIERARCHY
       EXPORTING
         I_APPSET_ID = I_APPSET_ID
-        I_APPL_ID   = I_APPL_ID
+        I_DIMENSION   = 'EMPLOYEE'
+        I_PARENT_MBR = 'TOTAL_ROLES'
 *       IT_CV       =
 *       IT_SEL      =
       IMPORTING
-        OUTPUT_DATA = <CHANGING_DATA>.
+        OUTPUT_DATA = LH_DATA.
+
+*************************
+*SAMPLE LT_SEL FOR DIM
+*************************
+*APPEND: 'ID' TO lt_attr_name.
+LOOP AT LH_DATA INTO LS_DATA.
+
+ls_sel-dimension = 'EMPLOYEE'.
+ls_sel-attribute = 'ID'.
+ls_sel-sign = 'I'.
+ls_sel-option = 'EQ'.
+ls_sel-low = LS_DATA-DIMENSION.
+APPEND ls_sel TO lt_sel.
+
+ENDLOOP.
+
+*******************************
 
 
 
-    CALL METHOD ZCL_BPC_COMMON=>WRITE_MODEL_DATA
+* changing lt_sel might not be required, just for testing purposes now
+
+    CALL METHOD ZCL_BPC_COMMON=>READ_MASTER_DATA
       EXPORTING
         I_APPSET_ID = I_APPSET_ID
-        I_APPL_ID   = I_APPL_ID
-   "    TARGET_MODEL     =
-        INPUT_DATA  = <CHANGING_DATA>
-*  IMPORTING
-*       ET_MESSAGE  =
-*       ET_ERROR_RECORDS =
-      .
+        I_DIMENSION   = 'EMPLOYEE'
+*       IT_CV       =
+*       IT_SEL      =
+      IMPORTING
+        OUTPUT_R_DATA = LD_R_DATA
+      CHANGING
+        LT_SEL = LT_SEL.
+
+       ASSIGN ld_r_data->* TO <dimension_data>.
+
+
+
+
+*    CALL METHOD ZCL_BPC_COMMON=>READ_MODEL_DATA
+*      EXPORTING
+*        I_APPSET_ID = I_APPSET_ID
+*        I_APPL_ID   = I_APPL_ID
+**       IT_CV       =
+**       IT_SEL      =
+*      IMPORTING
+*        OUTPUT_DATA = <CHANGING_DATA>.
+*
+*
+*
+*    CALL METHOD ZCL_BPC_COMMON=>WRITE_MODEL_DATA
+*      EXPORTING
+*        I_APPSET_ID = I_APPSET_ID
+*        I_APPL_ID   = I_APPL_ID
+*   "    TARGET_MODEL     =
+*        INPUT_DATA  = <CHANGING_DATA>
+**  IMPORTING
+**       ET_MESSAGE  =
+**       ET_ERROR_RECORDS =
+*      .
 
 ******************************************************************************************
 *REPLACE USER*****************************************************************************
@@ -304,160 +776,6 @@ CLASS ZCL_BPC_COMMON IMPLEMENTATION.
   ENDMETHOD.
 
 
-
-
-
-  METHOD READ_MODEL_DATA.
-************************************ READ_MODEL_DATA START ****************************************
-
-** 1. **--------- Data Declarations -------**
-    DATA: LT_SEL         TYPE UJ0_T_SEL, "Selection criteria table
-          LS_SEL         TYPE UJ0_S_SEL,
-          LS_CV          TYPE UJK_S_CV,      " Logic Current View
-          LT_DIM_MEMBER  TYPE UJA_T_DIM_MEMBER,
-          LS_DIM_MEMBER  LIKE LINE OF LT_DIM_MEMBER,
-          LO_APPL        TYPE REF TO CL_UJA_APPLICATION,
-          LT_APPL_DIM    TYPE UJA_T_APPL_DIM,
-          LS_APPL_DIM    LIKE LINE OF LT_APPL_DIM,
-          LT_DIM_NAME    TYPE UJQ_T_DIM,
-          LS_DIM_NAME    LIKE LINE OF LT_DIM_NAME,
-          LO_MODEL       TYPE REF TO IF_UJ_MODEL,
-          LO_DATAREF     TYPE REF TO DATA,
-          LO_QUERY       TYPE REF TO IF_UJO_QUERY,
-          LV_END_OF_DATA TYPE RS_BOOL,
-          LT_MESSAGE     TYPE UJ0_T_MESSAGE.
-
-    FIELD-SYMBOLS:  <LT_QUERY_RESULT> TYPE STANDARD TABLE.
-
-**---------------End of Data Declaration----------------------**
-
-
-
-
-*---- 2. Create an object  for  the input parameters such i_appset_id,  i_appl_id.-------*
-
-    CREATE OBJECT LO_APPL
-      EXPORTING
-        I_APPSET_ID      = I_APPSET_ID
-        I_APPLICATION_ID = I_APPL_ID.
-
-*---- 3. Use this object to read the dimension for the  i_appl_id  & Append ' Measures ' to the dimension table -----*
-
-    REFRESH LT_APPL_DIM.
-    LO_APPL->GET_APPL_DIM(
-    EXPORTING
-    I_APPL_ID   = I_APPL_ID
-    IMPORTING
-    ET_APPL_DIM = LT_APPL_DIM ). "dimension table
-    REFRESH LT_DIM_NAME.
-
-**Populate dimension table 'lt_dim_name'.
-
-    LOOP AT LT_APPL_DIM INTO LS_APPL_DIM.
-      LS_DIM_NAME = LS_APPL_DIM-DIMENSION.
-      APPEND LS_DIM_NAME TO LT_DIM_NAME.
-      CLEAR LS_DIM_NAME.
-    ENDLOOP.
-
-* Include ' Measures ' as dimension table *
-*  ls_dim_name  = 'MEASURES'.
-*  APPEND ls_dim_name TO lt_dim_name.
-*  SORT lt_dim_name.
-
-*--4. Prepare Selection range table say for ex :  'lt_sel '  *.
-* if it_sel[] is initial.
-    LOOP AT  LT_DIM_NAME INTO LS_DIM_NAME  .
-      CLEAR : LS_CV .
-
-      READ TABLE IT_SEL INTO LS_SEL WITH KEY DIMENSION = LS_DIM_NAME .
-      IF SY-SUBRC = 0.
-        LOOP AT IT_SEL INTO LS_SEL WHERE DIMENSION = LS_DIM_NAME .
-          APPEND LS_SEL TO LT_SEL.
-        ENDLOOP.
-        CONTINUE.
-      ENDIF.
-* Read from scope for each dimension from current view table*
-      IF IT_CV IS NOT INITIAL.
-
-        READ TABLE IT_CV INTO LS_CV WITH KEY DIMENSION =  LS_DIM_NAME .
-        IF SY-SUBRC = 0 . "and ls_cv-USER_SPECIFIED = abap_true.
-          LOOP AT LS_CV-MEMBER INTO LS_DIM_MEMBER.
-            LS_SEL-DIMENSION = LS_CV-DIMENSION.
-            LS_SEL-ATTRIBUTE = 'ID'.
-            LS_SEL-SIGN = 'I'.
-            LS_SEL-OPTION = 'EQ'.
-            LS_SEL-LOW = LS_DIM_MEMBER.
-            APPEND LS_SEL TO LT_SEL.
-            CLEAR LS_DIM_MEMBER.
-          ENDLOOP.
-          CLEAR LT_DIM_MEMBER.
-        ENDIF.
-      ENDIF.
-    ENDLOOP.
-
-
-* else.
-*   lt_sel[] = it_sel[].
-* endif.
-
-*---5. Create a reference structure similar to ct_data using the method -----*
-
-    TRY.
-        LO_MODEL = CL_UJ_MODEL=>GET_MODEL( I_APPSET_ID ).
-        LO_MODEL->CREATE_TX_DATA_REF(
-        EXPORTING
-        I_APPL_NAME  = I_APPL_ID
-        I_TYPE       = 'T'
-        IT_DIM_NAME  = LT_DIM_NAME
-        IF_TECH_NAME = SPACE
-        IMPORTING
-        ER_DATA      = LO_DATAREF ).
-      CATCH CX_UJ_STATIC_CHECK.
-    ENDTRY.
-* Assigning the structure to table
-    ASSIGN LO_DATAREF->* TO <LT_QUERY_RESULT>.
-
-**Run  a query using method  '  run_rsdri_query ' **
-    TRY.
-
-        LO_QUERY = CL_UJO_QUERY_FACTORY=>GET_QUERY_ADAPTER(
-        I_APPSET_ID = I_APPSET_ID
-        I_APPL_ID   = I_APPL_ID
-        ).
-** Run Query to populate ct_data based on dimensions , selection criteria **.
-
-        WHILE LV_END_OF_DATA = RS_C_FALSE.
-
-          LO_QUERY->RUN_RSDRI_QUERY(
-
-          EXPORTING
-          IT_DIM_NAME       =  LT_DIM_NAME " BPC: Dimension List
-          IT_RANGE          =  LT_SEL     " BPC: Selection condition
-          IF_CHECK_SECURITY = ABAP_FALSE   " BPC: Generic indicator
-
-          IMPORTING
-          ET_DATA           = <LT_QUERY_RESULT>
-          E_END_OF_DATA     = LV_END_OF_DATA    " BPC: Last Data Package Yes/No
-          ET_MESSAGE        = LT_MESSAGE    " BPC: Messages
-          ).
-
-*        LOOP AT <lt_query_result> ASSIGNING <ls_query_result>.
-*        APPEND <ls_query_result> TO output_data.
-*        ENDLOOP.
-
-        ENDWHILE.
-      CATCH CX_UJO_READ.  " Exception of common read
-
-    ENDTRY.
-
-*-- 6.  Copy data into output_data ----*
-
-    OUTPUT_DATA = <LT_QUERY_RESULT>.
-
-************************************ READ_MODEL_DATA END ******************************************
-  ENDMETHOD.
-
-
   METHOD WRITE_MODEL_DATA.
 ************************************ WRITE_MODEL_DATA START ***************************************
 
@@ -555,156 +873,4 @@ CLASS ZCL_BPC_COMMON IMPLEMENTATION.
 
 ************************************ WRITE_MODEL_DATA END ****************************************
   ENDMETHOD.
-
-
-  METHOD CHANGE_LOG_USER.
-************************************ CHANGE_LOG_USER START ***************************************
-
-    DATA: CONTEXT_RO TYPE REF TO IF_UJ_CONTEXT,
-          L_LOG      TYPE STRING,
-          L_PATH     TYPE STRING,
-          L_STRING1  TYPE STRING,
-          L_STRING2  TYPE STRING,
-          L_STRING3  TYPE STRING,
-          LENGTH     TYPE I,
-          L_PATH2    TYPE UJ_DOCNAME,
-          RESULT_TAB TYPE MATCH_RESULT_TAB,
-          LS_RESULT  TYPE MATCH_RESULT,
-          L_USER     TYPE UJ0_S_USER.
-
-
-* Get the current context details
-    CALL METHOD CL_UJ_CONTEXT=>GET_CUR_CONTEXT
-      RECEIVING
-        RO_CONTEXT = CONTEXT_RO.
-    CONTEXT_RO->SWITCH_TO_SRVADMIN( ).
-
-* Assign the user details
-    L_USER = CONTEXT_RO->DS_USER.
-    IF L_USER-USER_ID NE SY-UNAME.
-      L_USER-USER_ID = SY-UNAME.
-
-
-      TRY.
-          CALL METHOD CL_UJ_CONTEXT=>SET_CUR_CONTEXT
-            EXPORTING
-              I_APPSET_ID = I_APPSET_ID
-              IS_USER     = L_USER
-              I_APPL_ID   = I_APPL_ID.
-
-        CATCH CX_UJ_OBJ_NOT_FOUND .
-          L_LOG = GET_MESSAGE_TEXT( I_MSGTYPE = 'E'  I_MSGNO = SY-MSGNO ).
-          CL_UJK_LOGGER=>LOG( I_OBJECT = L_LOG ).
-      ENDTRY.
-
-      L_PATH = CL_UJK_MODEL=>G_LOG_PATH.
-      FIND SY-UNAME IN L_PATH.
-      IF SY-SUBRC NE 0.
-
-        SPLIT L_PATH AT '\PRIVATEPUBLICATIONS\' INTO L_STRING1 L_STRING2.
-        FIND FIRST OCCURRENCE OF '\' IN L_STRING2  RESULTS RESULT_TAB.
-        READ TABLE RESULT_TAB INTO LS_RESULT INDEX 1.
-        LENGTH = STRLEN( L_STRING2 ) - LS_RESULT-OFFSET.
-        L_STRING3 = L_STRING2+LS_RESULT-OFFSET(LENGTH).
-        CONCATENATE L_STRING1 '\PRIVATEPUBLICATIONS\' SY-UNAME L_STRING3 INTO L_PATH2.
-        CL_UJK_MODEL=>G_LOG_PATH = L_PATH2.
-        TRY .
-            CL_UJK_LOGGER=>SAVE_LOG( I_PATH = L_PATH2 ).
-          CATCH CX_UJ_STATIC_CHECK.
-
-        ENDTRY.
-
-
-      ENDIF.
-    ENDIF.
-
-************************************ CHANGE_LOG_USER END ******************************************
-  ENDMETHOD.
-
-  METHOD GET_MESSAGE_TEXT.
-************************************ GET_MESSAGE_TEXT START ***************************************
-
-    DATA:
-      L_MSGTYPE       TYPE SY-MSGTY VALUE 'I',
-      L_MSGV1         TYPE SY-MSGV1,
-      L_MSGV2         TYPE SY-MSGV2,
-      L_MSGV3         TYPE SY-MSGV3,
-      L_MSGV4         TYPE SY-MSGV4,
-      P_MESSAGE_CLASS TYPE SY-MSGID VALUE 'UJD_EXCEPTION'.
-
-
-    IF I_MSGTYPE IS SUPPLIED.
-      L_MSGTYPE = I_MSGTYPE.
-    ENDIF.
-
-    IF I_MSGV1 IS SUPPLIED AND I_MSGV2 IS SUPPLIED AND I_MSGV3 IS SUPPLIED AND I_MSGV4 IS SUPPLIED.
-      L_MSGV1 = I_MSGV1. L_MSGV2 = I_MSGV2. L_MSGV3 = I_MSGV3. L_MSGV4 = I_MSGV4.
-      MESSAGE ID P_MESSAGE_CLASS TYPE L_MSGTYPE NUMBER I_MSGNO
-            INTO R_TEXT
-            WITH L_MSGV1 L_MSGV2 L_MSGV3 L_MSGV4.
-    ELSEIF I_MSGV1 IS SUPPLIED AND I_MSGV2 IS SUPPLIED AND I_MSGV3 IS SUPPLIED AND I_MSGV4 IS NOT SUPPLIED.
-      L_MSGV1 = I_MSGV1. L_MSGV2 = I_MSGV2. L_MSGV3 = I_MSGV3.
-      MESSAGE ID P_MESSAGE_CLASS TYPE L_MSGTYPE NUMBER I_MSGNO
-            INTO R_TEXT
-            WITH L_MSGV1 L_MSGV2 L_MSGV3.
-    ELSEIF I_MSGV1 IS SUPPLIED AND I_MSGV2 IS SUPPLIED AND I_MSGV3 IS NOT SUPPLIED AND I_MSGV4 IS NOT SUPPLIED.
-      L_MSGV1 = I_MSGV1. L_MSGV2 = I_MSGV2.
-      MESSAGE ID P_MESSAGE_CLASS TYPE L_MSGTYPE NUMBER I_MSGNO
-            INTO R_TEXT
-            WITH L_MSGV1 L_MSGV2.
-    ELSEIF I_MSGV1 IS SUPPLIED AND I_MSGV2 IS NOT SUPPLIED AND I_MSGV3 IS NOT SUPPLIED AND I_MSGV4 IS NOT SUPPLIED.
-      L_MSGV1 = I_MSGV1.
-      MESSAGE ID P_MESSAGE_CLASS TYPE L_MSGTYPE NUMBER I_MSGNO
-            INTO R_TEXT
-            WITH L_MSGV1.
-    ELSEIF I_MSGV1 IS NOT SUPPLIED AND I_MSGV2 IS NOT SUPPLIED AND I_MSGV3 IS NOT SUPPLIED AND I_MSGV4 IS NOT SUPPLIED.
-      MESSAGE ID P_MESSAGE_CLASS TYPE L_MSGTYPE NUMBER I_MSGNO
-            INTO R_TEXT.
-    ELSE.
-      "error error
-    ENDIF.
-
-************************************ GET_MESSAGE_TEXT END ***************************************
-  ENDMETHOD.
-
-  METHOD SWAP_USER.
-************************************ SWAP_USER START ********************************************
-
-    DATA: CONTEXT_RO TYPE REF TO IF_UJ_CONTEXT,
-          L_LOG      TYPE STRING,
-          LS_PARAM   TYPE UJK_S_SCRIPT_LOGIC_HASHENTRY,
-          L_USER_ID  TYPE STRING,
-          L_USER     TYPE UJ0_S_USER.
-
-    L_USER_ID = I_USER_ID.
-
-
-* Get the current context details
-    CALL METHOD CL_UJ_CONTEXT=>GET_CUR_CONTEXT
-      RECEIVING
-        RO_CONTEXT = CONTEXT_RO.
-    CONTEXT_RO->SWITCH_TO_SRVADMIN( ).
-
-* Assign the user details
-    L_USER = CONTEXT_RO->DS_USER.
-    L_USER-USER_ID = L_USER_ID.
-
-    TRY.
-        CALL METHOD CL_UJ_CONTEXT=>SET_CUR_CONTEXT
-          EXPORTING
-            I_APPSET_ID = I_APPSET_ID
-            IS_USER     = L_USER
-            I_APPL_ID   = I_APPL_ID.
-
-      CATCH CX_UJ_OBJ_NOT_FOUND .
-        L_LOG = GET_MESSAGE_TEXT( I_MSGTYPE = 'E'  I_MSGNO = SY-MSGNO ).
-        CL_UJK_LOGGER=>LOG( I_OBJECT = L_LOG ).
-    ENDTRY.
-
-************************************ SWAP_USER END ***************************************
-
-  ENDMETHOD.
-
-
-
 ENDCLASS.
