@@ -1,64 +1,71 @@
-class ZCL_BPC_COMMON definition
-  public
-  final
-  create public .
+CLASS ZCL_BPC_COMMON DEFINITION
+  PUBLIC
+  FINAL
+  CREATE PUBLIC .
 
-public section.
+  PUBLIC SECTION.
 
-  class-methods TEST_AND_DEBUG .
+    CLASS-METHODS TEST_AND_DEBUG .
 *    changing
 *      !CHANGING_DATA type STANDARD TABLE optional .
-  class-methods READ_MODEL_DATA
-    importing
-      !I_APPSET_ID type UJ_APPSET_ID
-      !I_APPL_ID type UJ_APPL_ID
-      !IT_CV type UJK_T_CV optional
-      !IT_SEL type UJ0_T_SEL optional
-    exporting
-      !OUTPUT_DATA type STANDARD TABLE .
-  class-methods WRITE_MODEL_DATA
-    importing
-      !I_APPSET_ID type UJ_APPSET_ID
-      !I_APPL_ID type UJ_APPL_ID
-      !TARGET_MODEL type UJ_APPL_ID optional
-      !INPUT_DATA type STANDARD TABLE
-    exporting
-      !ET_MESSAGE type UJ0_T_MESSAGE
-      !ET_ERROR_RECORDS type STANDARD TABLE .
-  class-methods READ_MASTER_DATA
-    importing
-      !I_APPSET_ID type UJ_APPSET_ID
-      !I_DIMENSION type UJ_DIM_NAME
-    exporting
-      !OUTPUT_R_DATA type ref to DATA
-    changing
-      !LT_SEL type UJ0_T_SEL .
-  class-methods READ_MASTER_DATA_HIERARCHY
-    importing
-      !I_APPSET_ID type UJ_APPSET_ID
-      !I_DIMENSION type UJ_DIM_NAME
-      !I_PARENT_MBR type UJ_DIM_MEMBER
-    exporting
-      !OUTPUT_DATA type STANDARD TABLE .
-  class-methods CHANGE_LOG_USER
-    importing
-      !I_APPSET_ID type UJ_APPSET_ID
-      !I_APPL_ID type UJ_APPL_ID .
-  class-methods GET_MESSAGE_TEXT
-    importing
-      !I_MSGNO type SYMSGNO optional
-      !I_MSGV1 type SYMSGV optional
-      !I_MSGV2 type SYMSGV optional
-      !I_MSGV3 type SYMSGV optional
-      !I_MSGV4 type SYMSGV optional
-      !I_MSGTYPE type SYMSGTY optional
-    returning
-      value(R_TEXT) type STRING .
-  class-methods SWAP_USER
-    importing
-      !I_APPSET_ID type UJ_APPSET_ID
-      !I_APPL_ID type UJ_APPL_ID
-      !I_USER_ID type UJ_LARGE_STRING .
+    CLASS-METHODS READ_MODEL_DATA
+      IMPORTING
+        !I_APPSET_ID TYPE UJ_APPSET_ID
+        !I_APPL_ID   TYPE UJ_APPL_ID
+        !IT_CV       TYPE UJK_T_CV OPTIONAL
+        !IT_SEL      TYPE UJ0_T_SEL OPTIONAL
+      EXPORTING
+        !OUTPUT_DATA TYPE STANDARD TABLE .
+    CLASS-METHODS WRITE_MODEL_DATA
+      IMPORTING
+        !I_APPSET_ID      TYPE UJ_APPSET_ID
+        !I_APPL_ID        TYPE UJ_APPL_ID
+        !TARGET_MODEL     TYPE UJ_APPL_ID OPTIONAL
+        !INPUT_DATA       TYPE STANDARD TABLE
+      EXPORTING
+        !ET_MESSAGE       TYPE UJ0_T_MESSAGE
+        !ET_ERROR_RECORDS TYPE STANDARD TABLE .
+    CLASS-METHODS READ_MASTER_DATA
+      IMPORTING
+        !I_APPSET_ID   TYPE UJ_APPSET_ID
+        !I_DIMENSION   TYPE UJ_DIM_NAME
+      EXPORTING
+        !OUTPUT_R_DATA TYPE REF TO DATA
+      CHANGING
+        !LT_SEL        TYPE UJ0_T_SEL .
+    CLASS-METHODS READ_MASTER_DATA_HIERARCHY
+      IMPORTING
+        !I_APPSET_ID  TYPE UJ_APPSET_ID
+        !I_DIMENSION  TYPE UJ_DIM_NAME
+        !I_PARENT_MBR TYPE UJ_DIM_MEMBER
+      EXPORTING
+        !OUTPUT_DATA  TYPE STANDARD TABLE .
+    CLASS-METHODS CHANGE_LOG_USER
+      IMPORTING
+        !I_APPSET_ID TYPE UJ_APPSET_ID
+        !I_APPL_ID   TYPE UJ_APPL_ID .
+    CLASS-METHODS GET_MESSAGE_TEXT
+      IMPORTING
+        !I_MSGNO      TYPE SYMSGNO OPTIONAL
+        !I_MSGV1      TYPE SYMSGV OPTIONAL
+        !I_MSGV2      TYPE SYMSGV OPTIONAL
+        !I_MSGV3      TYPE SYMSGV OPTIONAL
+        !I_MSGV4      TYPE SYMSGV OPTIONAL
+        !I_MSGTYPE    TYPE SYMSGTY OPTIONAL
+      RETURNING
+        VALUE(R_TEXT) TYPE STRING .
+    CLASS-METHODS SWAP_USER
+      IMPORTING
+        !I_APPSET_ID TYPE UJ_APPSET_ID
+        !I_APPL_ID   TYPE UJ_APPL_ID
+        !I_USER_ID   TYPE UJ_LARGE_STRING .
+
+    CLASS-METHODS READ_ACC_TRANS_RULES
+      IMPORTING
+        !I_APPSET_ID TYPE UJ_APPSET_ID
+        !I_APPL_ID   TYPE UJ_APPL_ID
+      EXPORTING
+        !OUTPUT_DATA TYPE UJP_CALC_ACCOUNT.
   PROTECTED SECTION.
   PRIVATE SECTION.
 
@@ -69,183 +76,381 @@ ENDCLASS.
 
 CLASS ZCL_BPC_COMMON IMPLEMENTATION.
 
+METHOD TEST_AND_DEBUG.
 
-  METHOD CHANGE_LOG_USER.
-************************************ CHANGE_LOG_USER START ***************************************
+************************************ TEST_AND_DEBUG START ***************************************
 
-    DATA: CONTEXT_RO TYPE REF TO IF_UJ_CONTEXT,
-          L_LOG      TYPE STRING,
-          L_PATH     TYPE STRING,
-          L_STRING1  TYPE STRING,
-          L_STRING2  TYPE STRING,
-          L_STRING3  TYPE STRING,
-          LENGTH     TYPE I,
-          L_PATH2    TYPE UJ_DOCNAME,
-          RESULT_TAB TYPE MATCH_RESULT_TAB,
-          LS_RESULT  TYPE MATCH_RESULT,
-          L_USER     TYPE UJ0_S_USER.
+***************VERSION CONTROL*******************************************
+* v.001. VZ - December 2016
+*************************************************************************
+
+************** INFORMATION ABOUT CLASS **********************************
+* This class consists of various methods which we find useful in BPC
+* BADI developments. This class could be called from BADI and parameters
+* could be passed to the required methods. This Class id Generic in it's
+* nature and could be reused on different implementations with the
+* relevant adjustments.
+*
+* Current list of methods in ZBPC_COMMON_CLASS:
+* 1. TEST_AND_DEBUG - service method with basic information and place
+*    for testing and debugging. This class is not required and could
+*    be delited on customer implementation after the initial unit testing.
+*
+* 2. READ_MODEL_DATA - reads model data and returns the read values back.
+*    Accepts IT_SEL and IT_CV as export parameters to filter data.
+*    Environment and Model IDs to be read have to be passed. The data is
+*    imported as OUTPUT_DATA Standard Table and has to be assigned to the
+*    field symbol or internal table of same type.
+*
+* 3. WRITE_MODEL_DATA - writes data back to the model. Could be used for
+*    cross-model writing. INPUT_DATA is the exporting parameter along with
+*    Environment, Model and Target model. If the Target Model is empty,
+*    data is written into the same model under exporting parameter.
+*    Method should be checking work status and relevant security, returning
+*    ET_MESSAGE and ET_ERROR_RECORDS if something went wrong. This will have
+*    to be passed to the calling BADI.
+*
+* 4. READ_MASTER_DATA - read master data of the relevant dimension, pass back.
+*    it_sel, Environment, Model and Dimension are the Importing Params, which
+*    means that the filter could be passed into method.
+*
+* 5. READ_MASTER_DATA_HIERARCHY - children of the particular hierarchy node,
+*    passed in the Importing parameter. Returns all children and can later
+*    be reused in READ_MODEL_DATA filter.
+*
+* 6. READ_ACC_TRANS_RULES - sample read of account transformation rules
+*
+* 7. SWAP_USER - to swap the user for Data Manager Package
+*
+* 8. CHANGE_LOG_USER - Change the user back to write the correct data manager log
+*
+* 9. GET_MESSAGE_TEXT - get relevant error message text from swap user
+*
+******************* PRE-SET FOR DEBUG ***********************************
+    DATA:        I_APPSET_ID TYPE UJ_APPSET_ID VALUE 'BAESAI_PLANNING',
+                 I_APPL_ID   TYPE UJ_APPL_ID VALUE 'PROJECTFORECAST',
+                 LT_SEL      TYPE UJ0_T_SEL,
+                 LD_R_DATA   TYPE REF TO DATA,
+
+                 LS_SEL      TYPE UJ0_S_SEL,
+                 LH_DATA     TYPE UJA_T_DIM_MEMBER,
+                 LS_DATA     TYPE UJA_S_DIM_MEMBER.
+
+*************************************************************************
+
+    FIELD-SYMBOLS: <CHANGING_DATA>          TYPE STANDARD TABLE,
+                   <DIMENSION_DATA>         TYPE STANDARD TABLE,
+                   <DIMENSION_HIER_MEMBERS> TYPE STANDARD TABLE.
+
+************************ASSIGN STRUCTURE OF INCOMING MODEL **************
+    DATA:  LT_DIM_LIST    TYPE UJA_T_DIM_LIST,
+           LO_APPL_MGR    TYPE REF TO IF_UJA_APPLICATION_MANAGER,
+           LO_QUERY       TYPE REF TO IF_UJO_QUERY,
+           LR_DATA        TYPE REF TO DATA,
+           LS_APPLICATION TYPE UJA_S_APPLICATION,
+           LS_DIMENSIONS  TYPE UJA_S_DIMENSION,
+           LT_MESSAGE     TYPE UJ0_T_MESSAGE.
+
+    LO_APPL_MGR = CL_UJA_BPC_ADMIN_FACTORY=>GET_APPLICATION_MANAGER(
+     I_APPSET_ID = I_APPSET_ID
+     I_APPLICATION_ID = I_APPL_ID ).
+    CLEAR LS_APPLICATION.
+    LO_APPL_MGR->GET(
+     EXPORTING
+     IF_WITH_MEASURES = ABAP_FALSE " BPC: Generic indicator
+     IF_SUMMARY = ABAP_FALSE " BPC: Generic indicator
+     IMPORTING
+     ES_APPLICATION = LS_APPLICATION ). " Applications table type
+
+    REFRESH LT_DIM_LIST.
+    LOOP AT LS_APPLICATION-DIMENSIONS INTO LS_DIMENSIONS.
+      APPEND LS_DIMENSIONS-DIMENSION TO LT_DIM_LIST.
+    ENDLOOP.
+    LO_APPL_MGR->CREATE_DATA_REF(
+     EXPORTING
+     I_DATA_TYPE = 'T'
+     IT_DIM_NAME = LT_DIM_LIST
+     IF_TECH_NAME = ABAP_FALSE
+     IF_SIGNEDDATA = ABAP_TRUE
+     IMPORTING
+     ER_DATA = LR_DATA ).
+
+    ASSIGN LR_DATA->* TO <CHANGING_DATA>.
+*****************************************************************************************
+
+*****************************************************************************************
+*SAMPLE CALLS
+*****************************************************************************************
+
+    CALL METHOD ZCL_BPC_COMMON=>READ_MASTER_DATA_HIERARCHY
+      EXPORTING
+        I_APPSET_ID  = I_APPSET_ID
+        I_DIMENSION  = 'EMPLOYEE'
+        I_PARENT_MBR = 'TOTAL_ROLES'
+*       IT_CV        =
+*       IT_SEL       =
+      IMPORTING
+        OUTPUT_DATA  = LH_DATA.
+
+*************************
+*SAMPLE LT_SEL FOR DIM
+*************************
+*APPEND: 'ID' TO lt_attr_name.
+    LOOP AT LH_DATA INTO LS_DATA.
+
+      LS_SEL-DIMENSION = 'EMPLOYEE'.
+      LS_SEL-ATTRIBUTE = 'ID'.
+      LS_SEL-SIGN = 'I'.
+      LS_SEL-OPTION = 'EQ'.
+      LS_SEL-LOW = LS_DATA-DIMENSION.
+      APPEND LS_SEL TO LT_SEL.
+
+    ENDLOOP.
+
+*******************************
 
 
-* Get the current context details
-    CALL METHOD CL_UJ_CONTEXT=>GET_CUR_CONTEXT
-      RECEIVING
-        RO_CONTEXT = CONTEXT_RO.
-    CONTEXT_RO->SWITCH_TO_SRVADMIN( ).
 
-* Assign the user details
-    L_USER = CONTEXT_RO->DS_USER.
-    IF L_USER-USER_ID NE SY-UNAME.
-      L_USER-USER_ID = SY-UNAME.
+* changing lt_sel might not be required, just for testing purposes now
 
+    CALL METHOD ZCL_BPC_COMMON=>READ_MASTER_DATA
+      EXPORTING
+        I_APPSET_ID   = I_APPSET_ID
+        I_DIMENSION   = 'EMPLOYEE'
+*       IT_CV         =
+*       IT_SEL        =
+      IMPORTING
+        OUTPUT_R_DATA = LD_R_DATA
+      CHANGING
+        LT_SEL        = LT_SEL.
 
-      TRY.
-          CALL METHOD CL_UJ_CONTEXT=>SET_CUR_CONTEXT
-            EXPORTING
-              I_APPSET_ID = I_APPSET_ID
-              IS_USER     = L_USER
-              I_APPL_ID   = I_APPL_ID.
-
-        CATCH CX_UJ_OBJ_NOT_FOUND .
-          L_LOG = GET_MESSAGE_TEXT( I_MSGTYPE = 'E'  I_MSGNO = SY-MSGNO ).
-          CL_UJK_LOGGER=>LOG( I_OBJECT = L_LOG ).
-      ENDTRY.
-
-      L_PATH = CL_UJK_MODEL=>G_LOG_PATH.
-      FIND SY-UNAME IN L_PATH.
-      IF SY-SUBRC NE 0.
-
-        SPLIT L_PATH AT '\PRIVATEPUBLICATIONS\' INTO L_STRING1 L_STRING2.
-        FIND FIRST OCCURRENCE OF '\' IN L_STRING2  RESULTS RESULT_TAB.
-        READ TABLE RESULT_TAB INTO LS_RESULT INDEX 1.
-        LENGTH = STRLEN( L_STRING2 ) - LS_RESULT-OFFSET.
-        L_STRING3 = L_STRING2+LS_RESULT-OFFSET(LENGTH).
-        CONCATENATE L_STRING1 '\PRIVATEPUBLICATIONS\' SY-UNAME L_STRING3 INTO L_PATH2.
-        CL_UJK_MODEL=>G_LOG_PATH = L_PATH2.
-        TRY .
-            CL_UJK_LOGGER=>SAVE_LOG( I_PATH = L_PATH2 ).
-          CATCH CX_UJ_STATIC_CHECK.
-
-        ENDTRY.
+    ASSIGN LD_R_DATA->* TO <DIMENSION_DATA>.
 
 
-      ENDIF.
-    ENDIF.
 
-************************************ CHANGE_LOG_USER END ******************************************
+
+*    CALL METHOD ZCL_BPC_COMMON=>READ_MODEL_DATA
+*      EXPORTING
+*        I_APPSET_ID = I_APPSET_ID
+*        I_APPL_ID   = I_APPL_ID
+**       IT_CV       =
+**       IT_SEL      =
+*      IMPORTING
+*        OUTPUT_DATA = <CHANGING_DATA>.
+*
+*
+*
+*    CALL METHOD ZCL_BPC_COMMON=>WRITE_MODEL_DATA
+*      EXPORTING
+*        I_APPSET_ID = I_APPSET_ID
+*        I_APPL_ID   = I_APPL_ID
+*   "    TARGET_MODEL     =
+*        INPUT_DATA  = <CHANGING_DATA>
+**  IMPORTING
+**       ET_MESSAGE  =
+**       ET_ERROR_RECORDS =
+*      .
+
+******************************************************************************************
+*REPLACE USER*****************************************************************************
+* IT_PARAM IN IF_UJ_CUSTOM_LOGIC~EXECUTE - Replacement Call from standard BADI
+* IT_PARAM will give errors if uncommented, unless added as exporting param or
+* triggered within IF_UJ_CUSTOM_LOGIC~EXECUTE
+******************************************************************************************
+*
+*  DATA: ls_param        TYPE ujk_s_script_logic_hashentry.
+*
+*
+** Read parameters table to get the user ID of replacement user
+*  READ TABLE it_param INTO ls_param WITH KEY hashkey = 'USER'.
+*  IF sy-subrc EQ 0 AND ls_param-hashvalue IS NOT INITIAL.
+** If user exists - means the first call from script logic, call swap_user method
+*    call method ZCL_BPC_COMMON=>swap_user( EXPORTING i_appset_id = i_appset_id
+*                             i_appl_id   = i_appl_id
+*                             i_user_id   = ls_param-hashvalue ).
+*  ELSE.
+** If the USER is empty - means the second call to write log for the corect user
+*    call method ZCL_BPC_COMMON=>change_log_user( EXPORTING i_appset_id = i_appset_id
+*                                 i_appl_id   = i_appl_id ).
+*  ENDIF.
+********************************************************************************************
+
+
+************************ CODE SNIPPET TO CONVERT DATA BETWEEN MODELS **********************
+***** Based on ENVIRONMENSHELL Dimensionality *********************************************
+****  Idea is to read data from one model and then write it back to another model, converting on the way
+***** DO NOT USE AS IS ********************************************************************
+*   DATA:   lr_member_data TYPE REF TO data,
+*           lr_result_rec TYPE REF TO data,
+*           lr_input_data type ref to data,
+*           lt_final TYPE REF TO data,
+*           model TYPE UJ_APPL_ID,
+*           call_execute_method type ref to IF_UJ_CUSTOM_LOGIC.
+*
+*  FIELD-SYMBOLS: <fs_rec> TYPE any,
+*                 <input_data> type standard table,
+*                 <fs_result_rec> TYPE any,
+*                 <commit_data> type standard table,
+*                 <ft_final> TYPE STANDARD TABLE.
+
+*field-symbols: <lt_data> type standard table,
+* <ls_data> type any,
+* <ls_input_data> type any,
+* <lv_account> type any,
+* <lv_audittrail> type any,
+* <lv_category> type any,
+* <lv_entity> type any,
+* <lv_flow> type any,
+* <lv_interco> type any,
+* <lv_rptcurrency> type any,
+* <lv_scope> type any,
+* <lv_time> type any,
+* <lv_signeddata> type any.
+*
+*
+*
+**ASSIGN input_data to <input_data>.
+**create data lr_input_data like line of <input_data>.
+**assign lr_input_data->* to <ls_input_data>.
+*
+**loop at input_data into <ls_input_data>.
+**endloop.
+*
+*
+*
+*DATA:  lt_dim_list type uja_t_dim_list,
+* lo_appl_mgr type ref to if_uja_application_manager,
+* lo_query type ref to if_ujo_query,
+* lr_data type ref to data,
+* ls_application type UJA_S_APPLICATION,
+* ls_dimensions type UJA_S_DIMENSION,
+* lt_message TYPE uj0_t_message.
+*
+*lo_appl_mgr = cl_uja_bpc_admin_factory=>get_application_manager(
+* i_appset_id = i_appset_id
+* i_application_id = i_appl_id ).
+*clear ls_application.
+*lo_appl_mgr->GET(
+* exporting
+* IF_WITH_MEASURES = ABAP_FALSE " BPC: Generic indicator
+* IF_SUMMARY = ABAP_FALSE " BPC: Generic indicator
+* importing
+* ES_APPLICATION = ls_application ). " Applications table type
+*
+* refresh lt_dim_list.
+*loop at ls_application-dimensions into ls_dimensions.
+* append ls_dimensions-dimension to lt_dim_list.
+*endloop.
+*lo_appl_mgr->create_data_ref(
+* EXPORTING
+* i_data_type = 'T'
+* it_dim_name = lt_dim_list
+* if_tech_name = abap_false
+* if_signeddata = abap_true
+* IMPORTING
+* er_data = lr_data ).
+*
+*ASSIGN lr_data->* to <commit_data>.
+*
+*
+*create data lr_data like line of <commit_data>.
+*assign lr_data->* to <ls_data>.
+** fill each field, by assign a field symbol
+*
+* ASSIGN COMPONENT 'ACCOUNT' OF STRUCTURE <ls_data> to <lv_account>.
+* ASSIGN COMPONENT 'AUDITTRAIL' OF STRUCTURE <ls_data> to <lv_audittrail>.
+* ASSIGN COMPONENT 'CATEGORY' OF STRUCTURE <ls_data> to <lv_category>.
+* ASSIGN COMPONENT 'ENTITY' OF STRUCTURE <ls_data> to <lv_entity>.
+* ASSIGN COMPONENT 'FLOW' OF STRUCTURE <ls_data> to <lv_flow>.
+* ASSIGN COMPONENT 'INTERCO' OF STRUCTURE <ls_data> to <lv_interco>.
+* ASSIGN COMPONENT 'RPTCURRENCY' OF STRUCTURE <ls_data> to <lv_rptcurrency>.
+* ASSIGN COMPONENT 'SCOPE' OF STRUCTURE <ls_data> to <lv_scope>.
+* ASSIGN COMPONENT 'TIME' OF STRUCTURE <ls_data> to <lv_time>.
+* ASSIGN COMPONENT 'SIGNEDDATA' OF STRUCTURE <ls_data> to <lv_signeddata>.
+*
+* <lv_account> = 'BS223'.
+* <lv_audittrail> = 'Input'.
+* <lv_category> = 'Actual'.
+* <lv_entity> = 'ZA'.
+* <lv_flow> = 'Decrease'.
+* <lv_interco> = 'ThirdParty'.
+* <lv_rptcurrency> = 'LC'.
+* <lv_scope> = 'S_None'.
+* <lv_time> = '2006.01'.
+* <lv_signeddata> = 500000.
+*
+*
+*append <ls_data> to <commit_data>.
+
+************************************ TEST_AND_DEBUG END *******************************************
   ENDMETHOD.
 
 
-  METHOD GET_MESSAGE_TEXT.
-************************************ GET_MESSAGE_TEXT START ***************************************
 
-    DATA:
-      L_MSGTYPE       TYPE SY-MSGTY VALUE 'I',
-      L_MSGV1         TYPE SY-MSGV1,
-      L_MSGV2         TYPE SY-MSGV2,
-      L_MSGV3         TYPE SY-MSGV3,
-      L_MSGV4         TYPE SY-MSGV4,
-      P_MESSAGE_CLASS TYPE SY-MSGID VALUE 'UJD_EXCEPTION'.
+  METHOD READ_MASTER_DATA.
+************************************ READ_MASTER_DATA START****************************************
 
-
-    IF I_MSGTYPE IS SUPPLIED.
-      L_MSGTYPE = I_MSGTYPE.
-    ENDIF.
-
-    IF I_MSGV1 IS SUPPLIED AND I_MSGV2 IS SUPPLIED AND I_MSGV3 IS SUPPLIED AND I_MSGV4 IS SUPPLIED.
-      L_MSGV1 = I_MSGV1. L_MSGV2 = I_MSGV2. L_MSGV3 = I_MSGV3. L_MSGV4 = I_MSGV4.
-      MESSAGE ID P_MESSAGE_CLASS TYPE L_MSGTYPE NUMBER I_MSGNO
-            INTO R_TEXT
-            WITH L_MSGV1 L_MSGV2 L_MSGV3 L_MSGV4.
-    ELSEIF I_MSGV1 IS SUPPLIED AND I_MSGV2 IS SUPPLIED AND I_MSGV3 IS SUPPLIED AND I_MSGV4 IS NOT SUPPLIED.
-      L_MSGV1 = I_MSGV1. L_MSGV2 = I_MSGV2. L_MSGV3 = I_MSGV3.
-      MESSAGE ID P_MESSAGE_CLASS TYPE L_MSGTYPE NUMBER I_MSGNO
-            INTO R_TEXT
-            WITH L_MSGV1 L_MSGV2 L_MSGV3.
-    ELSEIF I_MSGV1 IS SUPPLIED AND I_MSGV2 IS SUPPLIED AND I_MSGV3 IS NOT SUPPLIED AND I_MSGV4 IS NOT SUPPLIED.
-      L_MSGV1 = I_MSGV1. L_MSGV2 = I_MSGV2.
-      MESSAGE ID P_MESSAGE_CLASS TYPE L_MSGTYPE NUMBER I_MSGNO
-            INTO R_TEXT
-            WITH L_MSGV1 L_MSGV2.
-    ELSEIF I_MSGV1 IS SUPPLIED AND I_MSGV2 IS NOT SUPPLIED AND I_MSGV3 IS NOT SUPPLIED AND I_MSGV4 IS NOT SUPPLIED.
-      L_MSGV1 = I_MSGV1.
-      MESSAGE ID P_MESSAGE_CLASS TYPE L_MSGTYPE NUMBER I_MSGNO
-            INTO R_TEXT
-            WITH L_MSGV1.
-    ELSEIF I_MSGV1 IS NOT SUPPLIED AND I_MSGV2 IS NOT SUPPLIED AND I_MSGV3 IS NOT SUPPLIED AND I_MSGV4 IS NOT SUPPLIED.
-      MESSAGE ID P_MESSAGE_CLASS TYPE L_MSGTYPE NUMBER I_MSGNO
-            INTO R_TEXT.
-    ELSE.
-      "error error
-    ENDIF.
-
-************************************ GET_MESSAGE_TEXT END ***************************************
-  ENDMETHOD.
-
-
-  METHOD read_master_data.
-
-
-DATA: lo_dim TYPE REF TO cl_uja_dim,
-      lr_dim_data TYPE REF TO if_uja_dim_data,
-      lt_attr_name TYPE uja_t_attr_name,
+    DATA: LO_DIM       TYPE REF TO CL_UJA_DIM,
+          LR_DIM_DATA  TYPE REF TO IF_UJA_DIM_DATA,
+          LT_ATTR_NAME TYPE UJA_T_ATTR_NAME,
 *      lt_sel TYPE uj0_t_sel,
-      ls_sel TYPE uj0_s_sel,
-      lr_data TYPE REF TO data,
-      ls_emp TYPE REF TO data.
+          LS_SEL       TYPE UJ0_S_SEL,
+          LR_DATA      TYPE REF TO DATA,
+          LS_EMP       TYPE REF TO DATA.
 
-FIELD-SYMBOLS: <lt_dimesnion_data> TYPE STANDARD TABLE.
+    FIELD-SYMBOLS: <LT_DIMESNION_DATA> TYPE STANDARD TABLE.
 *               <ls_dimension_data> TYPE ANY.
 
-REFRESH: lt_attr_name.
+    REFRESH: LT_ATTR_NAME.
 
-TRY .
+    TRY .
 
-    CREATE OBJECT lo_dim
-      EXPORTING
-        i_appset_id = i_appset_id
-        i_dimension = i_dimension.
+        CREATE OBJECT LO_DIM
+          EXPORTING
+            I_APPSET_ID = I_APPSET_ID
+            I_DIMENSION = I_DIMENSION.
 
-  CATCH cx_uja_admin_error .
-ENDTRY.
+      CATCH CX_UJA_ADMIN_ERROR .
+    ENDTRY.
 
-lr_dim_data = lo_dim.
+    LR_DIM_DATA = LO_DIM.
 
-" Append the list of attribute(s) for which the master data is generated
+    " Append the list of attribute(s) for which the master data is generated
 *APPEND: 'ID' TO lt_attr_name.
 
-" Bind the condition data to lt_sel table, this will become selection criteria
-" analogous to the WHERE clause of a DB SELECT statement
+    " Bind the condition data to lt_sel table, this will become selection criteria
+    " analogous to the WHERE clause of a DB SELECT statement
 
 * IN THIS EXAMPLE LT_SEL IS CHANGING PARAM, WHICH MIGHT NOT BE THE CASE IN THE FINAL
 * IMPLEMENTATION
 
-IF lt_sel is INITIAL.
+    IF LT_SEL IS INITIAL.
 
-ls_sel-dimension = i_dimension.
-ls_sel-attribute = 'CALC'.
-ls_sel-sign = 'I'.
-ls_sel-option = 'EQ'.
-ls_sel-low = 'N'.
-APPEND ls_sel TO lt_sel.
+      LS_SEL-DIMENSION = I_DIMENSION.
+      LS_SEL-ATTRIBUTE = 'CALC'.
+      LS_SEL-SIGN = 'I'.
+      LS_SEL-OPTION = 'EQ'.
+      LS_SEL-LOW = 'N'.
+      APPEND LS_SEL TO LT_SEL.
 
-ENDIF.
+    ENDIF.
 
-" GET DIMENSION MEMBERS
-  TRY.
-    CALL METHOD lr_dim_data->read_mbr_data
-      EXPORTING
-        it_attr_list = lt_attr_name    "attribute list
-        it_sel       = lt_sel          "condition data
-      IMPORTING
-        er_data      = lr_data.        "reference of master data table
+    " GET DIMENSION MEMBERS
+    TRY.
+        CALL METHOD LR_DIM_DATA->READ_MBR_DATA
+          EXPORTING
+            IT_ATTR_LIST = LT_ATTR_NAME    "attribute list
+            IT_SEL       = LT_SEL          "condition data
+          IMPORTING
+            ER_DATA      = LR_DATA.        "reference of master data table
 
-  CATCH cx_uja_admin_error .
-ENDTRY.
+      CATCH CX_UJA_ADMIN_ERROR .
+    ENDTRY.
 
-  "Assign the referenced memory area to a field-symbol
+    "Assign the referenced memory area to a field-symbol
 * ASSIGN lr_data->* TO <lt_dimesnion_data>.
 
-OUTPUT_R_DATA = LR_DATA.
+    OUTPUT_R_DATA = LR_DATA.
 
 *CREATE DATA LS_EMP LIKE LINE OF <LT_DIMESNION_DATA>.
 *ASSIGN LS_EMP->* TO <LS_DIMENSION_DATA>.
@@ -254,34 +459,35 @@ OUTPUT_R_DATA = LR_DATA.
   ENDMETHOD.
 
 
-  METHOD read_master_data_hierarchy.
+  METHOD READ_MASTER_DATA_HIERARCHY.
 
-  DATA:    lo_dim TYPE REF TO cl_uja_dim,
-           lr_data TYPE REF TO data,
-           lr_dim_data TYPE REF TO if_uja_dim_data,
-           lt_base_en TYPE uja_t_dim_member.
-TRY.
-    CREATE OBJECT lo_dim
+    DATA:    LO_DIM      TYPE REF TO CL_UJA_DIM,
+             LR_DATA     TYPE REF TO DATA,
+             LR_DIM_DATA TYPE REF TO IF_UJA_DIM_DATA,
+             LT_BASE_EN  TYPE UJA_T_DIM_MEMBER.
+    TRY.
+        CREATE OBJECT LO_DIM
+          EXPORTING
+            I_APPSET_ID = I_APPSET_ID
+            I_DIMENSION = I_DIMENSION.
+
+      CATCH CX_UJA_ADMIN_ERROR.
+    ENDTRY.
+
+    LR_DIM_DATA = LO_DIM.
+
+    "GET THE CHILD NODES
+    CALL METHOD LR_DIM_DATA->GET_CHILDREN_MBR
       EXPORTING
-        i_appset_id = i_appset_id
-        i_dimension = i_dimension.
+        I_PARENT_MBR     = I_PARENT_MBR
+        IF_ONLY_BASE_MBR = 'X'
+      IMPORTING
+        ET_MEMBER        = LT_BASE_EN.
 
-  CATCH cx_uja_admin_error.
-ENDTRY.
-
-lr_dim_data = lo_dim.
-
-"GET THE CHILD NODES
-CALL METHOD lr_dim_data->get_children_mbr
-  EXPORTING
-    i_parent_mbr     = i_parent_mbr
-    if_only_base_mbr = 'X'
-  IMPORTING
-    et_member        = lt_base_en.
-
-OUTPUT_DATA = lt_base_en.
+    OUTPUT_DATA = LT_BASE_EN.
 
 
+************************************ READ_MASTER_DATA END *****************************************
 
   ENDMETHOD.
 
@@ -435,347 +641,6 @@ OUTPUT_DATA = lt_base_en.
   ENDMETHOD.
 
 
-  METHOD SWAP_USER.
-************************************ SWAP_USER START ********************************************
-
-    DATA: CONTEXT_RO TYPE REF TO IF_UJ_CONTEXT,
-          L_LOG      TYPE STRING,
-          LS_PARAM   TYPE UJK_S_SCRIPT_LOGIC_HASHENTRY,
-          L_USER_ID  TYPE STRING,
-          L_USER     TYPE UJ0_S_USER.
-
-    L_USER_ID = I_USER_ID.
-
-
-* Get the current context details
-    CALL METHOD CL_UJ_CONTEXT=>GET_CUR_CONTEXT
-      RECEIVING
-        RO_CONTEXT = CONTEXT_RO.
-    CONTEXT_RO->SWITCH_TO_SRVADMIN( ).
-
-* Assign the user details
-    L_USER = CONTEXT_RO->DS_USER.
-    L_USER-USER_ID = L_USER_ID.
-
-    TRY.
-        CALL METHOD CL_UJ_CONTEXT=>SET_CUR_CONTEXT
-          EXPORTING
-            I_APPSET_ID = I_APPSET_ID
-            IS_USER     = L_USER
-            I_APPL_ID   = I_APPL_ID.
-
-      CATCH CX_UJ_OBJ_NOT_FOUND .
-        L_LOG = GET_MESSAGE_TEXT( I_MSGTYPE = 'E'  I_MSGNO = SY-MSGNO ).
-        CL_UJK_LOGGER=>LOG( I_OBJECT = L_LOG ).
-    ENDTRY.
-
-************************************ SWAP_USER END ***************************************
-
-  ENDMETHOD.
-
-
-  METHOD TEST_AND_DEBUG.
-
-************************************ TEST_AND_DEBUG START ***************************************
-
-***************VERSION CONTROL*******************************************
-* v.001. Vadim Zaripov - December 2016
-*************************************************************************
-
-************** INFORMATION ABOUT CLASS **********************************
-* This class consists of various methods which we find useful in BPC
-* BADI developments. This class could be called from BADI and parameters
-* could be passed to the required methods. This Class id Generic in it's
-* nature and could be reused on different implementations with the
-* relevant adjustments.
-*
-* Current list of methods in ZBPC_COMMON_CLASS:
-* 1. TEST_AND_DEBUG - service method with basic information and place
-*    for testing and debugging. This class is not required and could
-*    be delited on customer implementation after the initial unit testing.
-*
-* 2. READ_MODEL_DATA - reads model data and returns the read values back.
-*    Accepts IT_SEL and IT_CV as export parameters to filter data.
-*    Environment and Model IDs to be read have to be passed. The data is
-*    imported as OUTPUT_DATA Standard Table and has to be assigned to the
-*    field symbol or internal table of same type.
-*
-* 3. WRITE_MODEL_DATA - writes data back to the model. Could be used for
-*    cross-model writing. INPUT_DATA is the exporting parameter along with
-*    Environment, Model and Target model. If the Target Model is empty,
-*    data is written into the same model under exporting parameter.
-*    Method should be checking work status and relevant security, returning
-*    ET_MESSAGE and ET_ERROR_RECORDS if something went wrong. This will have
-*    to be passed to the calling BADI.
-*
-* 4. READ_MASTER_DATA - read master data of the relevant dimension, pass back.
-*    it_sel, Environment, Model and Dimension are the Importing Params, which
-*    means that the filter could be passed into method.
-*
-* 5. READ_MASTER_DATA_CHILDREN - children of the particular hierarchy node,
-*    passed in the Importing parameter. Returns all children and can later
-*    be reused in READ_MODEL_DATA filter.
-*
-*
-******************* PRE-SET FOR DEBUG ***********************************
-    DATA:        I_APPSET_ID TYPE UJ_APPSET_ID VALUE 'BAESAI_PLANNING',
-                 I_APPL_ID   TYPE UJ_APPL_ID VALUE 'PROJECTFORECAST',
-                 lt_sel TYPE uj0_t_sel,
-                            LD_R_DATA        TYPE REF TO DATA,
-
-           ls_sel TYPE uj0_s_sel,
-           LH_DATA TYPE uja_t_dim_member,
-           LS_DATA TYPE uja_s_dim_member.
-
-*************************************************************************
-
-    FIELD-SYMBOLS: <CHANGING_DATA> TYPE STANDARD TABLE,
-                   <dimension_data> TYPE STANDARD TABLE,
-                   <dimension_hier_members> TYPE STANDARD TABLE.
-
-************************ASSIGN STRUCTURE OF INCOMING MODEL **************
-    DATA:  LT_DIM_LIST    TYPE UJA_T_DIM_LIST,
-           LO_APPL_MGR    TYPE REF TO IF_UJA_APPLICATION_MANAGER,
-           LO_QUERY       TYPE REF TO IF_UJO_QUERY,
-           LR_DATA        TYPE REF TO DATA,
-           LS_APPLICATION TYPE UJA_S_APPLICATION,
-           LS_DIMENSIONS  TYPE UJA_S_DIMENSION,
-           LT_MESSAGE     TYPE UJ0_T_MESSAGE.
-
-    LO_APPL_MGR = CL_UJA_BPC_ADMIN_FACTORY=>GET_APPLICATION_MANAGER(
-     I_APPSET_ID = I_APPSET_ID
-     I_APPLICATION_ID = I_APPL_ID ).
-    CLEAR LS_APPLICATION.
-    LO_APPL_MGR->GET(
-     EXPORTING
-     IF_WITH_MEASURES = ABAP_FALSE " BPC: Generic indicator
-     IF_SUMMARY = ABAP_FALSE " BPC: Generic indicator
-     IMPORTING
-     ES_APPLICATION = LS_APPLICATION ). " Applications table type
-
-    REFRESH LT_DIM_LIST.
-    LOOP AT LS_APPLICATION-DIMENSIONS INTO LS_DIMENSIONS.
-      APPEND LS_DIMENSIONS-DIMENSION TO LT_DIM_LIST.
-    ENDLOOP.
-    LO_APPL_MGR->CREATE_DATA_REF(
-     EXPORTING
-     I_DATA_TYPE = 'T'
-     IT_DIM_NAME = LT_DIM_LIST
-     IF_TECH_NAME = ABAP_FALSE
-     IF_SIGNEDDATA = ABAP_TRUE
-     IMPORTING
-     ER_DATA = LR_DATA ).
-
-    ASSIGN LR_DATA->* TO <CHANGING_DATA>.
-*****************************************************************************************
-
-*****************************************************************************************
-*SAMPLE CALLS
-*****************************************************************************************
-
-      CALL METHOD ZCL_BPC_COMMON=>READ_MASTER_DATA_HIERARCHY
-      EXPORTING
-        I_APPSET_ID = I_APPSET_ID
-        I_DIMENSION   = 'EMPLOYEE'
-        I_PARENT_MBR = 'TOTAL_ROLES'
-*       IT_CV       =
-*       IT_SEL      =
-      IMPORTING
-        OUTPUT_DATA = LH_DATA.
-
-*************************
-*SAMPLE LT_SEL FOR DIM
-*************************
-*APPEND: 'ID' TO lt_attr_name.
-LOOP AT LH_DATA INTO LS_DATA.
-
-ls_sel-dimension = 'EMPLOYEE'.
-ls_sel-attribute = 'ID'.
-ls_sel-sign = 'I'.
-ls_sel-option = 'EQ'.
-ls_sel-low = LS_DATA-DIMENSION.
-APPEND ls_sel TO lt_sel.
-
-ENDLOOP.
-
-*******************************
-
-
-
-* changing lt_sel might not be required, just for testing purposes now
-
-    CALL METHOD ZCL_BPC_COMMON=>READ_MASTER_DATA
-      EXPORTING
-        I_APPSET_ID = I_APPSET_ID
-        I_DIMENSION   = 'EMPLOYEE'
-*       IT_CV       =
-*       IT_SEL      =
-      IMPORTING
-        OUTPUT_R_DATA = LD_R_DATA
-      CHANGING
-        LT_SEL = LT_SEL.
-
-       ASSIGN ld_r_data->* TO <dimension_data>.
-
-
-
-
-*    CALL METHOD ZCL_BPC_COMMON=>READ_MODEL_DATA
-*      EXPORTING
-*        I_APPSET_ID = I_APPSET_ID
-*        I_APPL_ID   = I_APPL_ID
-**       IT_CV       =
-**       IT_SEL      =
-*      IMPORTING
-*        OUTPUT_DATA = <CHANGING_DATA>.
-*
-*
-*
-*    CALL METHOD ZCL_BPC_COMMON=>WRITE_MODEL_DATA
-*      EXPORTING
-*        I_APPSET_ID = I_APPSET_ID
-*        I_APPL_ID   = I_APPL_ID
-*   "    TARGET_MODEL     =
-*        INPUT_DATA  = <CHANGING_DATA>
-**  IMPORTING
-**       ET_MESSAGE  =
-**       ET_ERROR_RECORDS =
-*      .
-
-******************************************************************************************
-*REPLACE USER*****************************************************************************
-* IT_PARAM IN IF_UJ_CUSTOM_LOGIC~EXECUTE - Replacement Call from standard BADI
-* IT_PARAM will give errors if uncommented, unless added as exporting param or
-* triggered within IF_UJ_CUSTOM_LOGIC~EXECUTE
-******************************************************************************************
-*
-*  DATA: ls_param        TYPE ujk_s_script_logic_hashentry.
-*
-*
-** Read parameters table to get the user ID of replacement user
-*  READ TABLE it_param INTO ls_param WITH KEY hashkey = 'USER'.
-*  IF sy-subrc EQ 0 AND ls_param-hashvalue IS NOT INITIAL.
-** If user exists - means the first call from script logic, call swap_user method
-*    call method ZCL_BPC_COMMON=>swap_user( EXPORTING i_appset_id = i_appset_id
-*                             i_appl_id   = i_appl_id
-*                             i_user_id   = ls_param-hashvalue ).
-*  ELSE.
-** If the USER is empty - means the second call to write log for the corect user
-*    call method ZCL_BPC_COMMON=>change_log_user( EXPORTING i_appset_id = i_appset_id
-*                                 i_appl_id   = i_appl_id ).
-*  ENDIF.
-********************************************************************************************
-
-
-************************ CODE SNIPPET TO CONVERT DATA BETWEEN MODELS **********************
-***** Based on ENVIRONMENSHELL Dimensionality *********************************************
-***** DO NOT USE AS IS ********************************************************************
-*   DATA:   lr_member_data TYPE REF TO data,
-*           lr_result_rec TYPE REF TO data,
-*           lr_input_data type ref to data,
-*           lt_final TYPE REF TO data,
-*           model TYPE UJ_APPL_ID,
-*           call_execute_method type ref to IF_UJ_CUSTOM_LOGIC.
-*
-*  FIELD-SYMBOLS: <fs_rec> TYPE any,
-*                 <input_data> type standard table,
-*                 <fs_result_rec> TYPE any,
-*                 <commit_data> type standard table,
-*                 <ft_final> TYPE STANDARD TABLE.
-
-*field-symbols: <lt_data> type standard table,
-* <ls_data> type any,
-* <ls_input_data> type any,
-* <lv_account> type any,
-* <lv_audittrail> type any,
-* <lv_category> type any,
-* <lv_entity> type any,
-* <lv_flow> type any,
-* <lv_interco> type any,
-* <lv_rptcurrency> type any,
-* <lv_scope> type any,
-* <lv_time> type any,
-* <lv_signeddata> type any.
-*
-*
-*
-**ASSIGN input_data to <input_data>.
-**create data lr_input_data like line of <input_data>.
-**assign lr_input_data->* to <ls_input_data>.
-*
-**loop at input_data into <ls_input_data>.
-**endloop.
-*
-*
-*
-*DATA:  lt_dim_list type uja_t_dim_list,
-* lo_appl_mgr type ref to if_uja_application_manager,
-* lo_query type ref to if_ujo_query,
-* lr_data type ref to data,
-* ls_application type UJA_S_APPLICATION,
-* ls_dimensions type UJA_S_DIMENSION,
-* lt_message TYPE uj0_t_message.
-*
-*lo_appl_mgr = cl_uja_bpc_admin_factory=>get_application_manager(
-* i_appset_id = i_appset_id
-* i_application_id = i_appl_id ).
-*clear ls_application.
-*lo_appl_mgr->GET(
-* exporting
-* IF_WITH_MEASURES = ABAP_FALSE " BPC: Generic indicator
-* IF_SUMMARY = ABAP_FALSE " BPC: Generic indicator
-* importing
-* ES_APPLICATION = ls_application ). " Applications table type
-*
-* refresh lt_dim_list.
-*loop at ls_application-dimensions into ls_dimensions.
-* append ls_dimensions-dimension to lt_dim_list.
-*endloop.
-*lo_appl_mgr->create_data_ref(
-* EXPORTING
-* i_data_type = 'T'
-* it_dim_name = lt_dim_list
-* if_tech_name = abap_false
-* if_signeddata = abap_true
-* IMPORTING
-* er_data = lr_data ).
-*
-*ASSIGN lr_data->* to <commit_data>.
-*
-*
-*create data lr_data like line of <commit_data>.
-*assign lr_data->* to <ls_data>.
-** fill each field, by assign a field symbol
-*
-* ASSIGN COMPONENT 'ACCOUNT' OF STRUCTURE <ls_data> to <lv_account>.
-* ASSIGN COMPONENT 'AUDITTRAIL' OF STRUCTURE <ls_data> to <lv_audittrail>.
-* ASSIGN COMPONENT 'CATEGORY' OF STRUCTURE <ls_data> to <lv_category>.
-* ASSIGN COMPONENT 'ENTITY' OF STRUCTURE <ls_data> to <lv_entity>.
-* ASSIGN COMPONENT 'FLOW' OF STRUCTURE <ls_data> to <lv_flow>.
-* ASSIGN COMPONENT 'INTERCO' OF STRUCTURE <ls_data> to <lv_interco>.
-* ASSIGN COMPONENT 'RPTCURRENCY' OF STRUCTURE <ls_data> to <lv_rptcurrency>.
-* ASSIGN COMPONENT 'SCOPE' OF STRUCTURE <ls_data> to <lv_scope>.
-* ASSIGN COMPONENT 'TIME' OF STRUCTURE <ls_data> to <lv_time>.
-* ASSIGN COMPONENT 'SIGNEDDATA' OF STRUCTURE <ls_data> to <lv_signeddata>.
-*
-* <lv_account> = 'BS223'.
-* <lv_audittrail> = 'Input'.
-* <lv_category> = 'Actual'.
-* <lv_entity> = 'ZA'.
-* <lv_flow> = 'Decrease'.
-* <lv_interco> = 'ThirdParty'.
-* <lv_rptcurrency> = 'LC'.
-* <lv_scope> = 'S_None'.
-* <lv_time> = '2006.01'.
-* <lv_signeddata> = 500000.
-*
-*
-*append <ls_data> to <commit_data>.
-
-************************************ TEST_AND_DEBUG END *******************************************
-  ENDMETHOD.
-
-
   METHOD WRITE_MODEL_DATA.
 ************************************ WRITE_MODEL_DATA START ***************************************
 
@@ -873,4 +738,167 @@ ENDLOOP.
 
 ************************************ WRITE_MODEL_DATA END ****************************************
   ENDMETHOD.
+
+
+  METHOD READ_ACC_TRANS_RULES.
+************************************ READ_ACC_TRANS_RULES START **********************************
+******* SIMPLE SAMPLE READ OF ACCOUNT TRANSFORMATION RULES **********************************************
+
+    SELECT * FROM UJP_CALC_ACCOUNT INTO OUTPUT_DATA WHERE APPSET_ID = I_APPSET_ID AND APPLICATION_ID = I_APPL_ID.
+    ENDSELECT.
+
+************************************ READ_ACC_TRANS_RULES END   **********************************
+  ENDMETHOD.
+
+
+METHOD SWAP_USER.
+************************************ SWAP_USER START ********************************************
+
+    DATA: CONTEXT_RO TYPE REF TO IF_UJ_CONTEXT,
+          L_LOG      TYPE STRING,
+          LS_PARAM   TYPE UJK_S_SCRIPT_LOGIC_HASHENTRY,
+          L_USER_ID  TYPE STRING,
+          L_USER     TYPE UJ0_S_USER.
+
+    L_USER_ID = I_USER_ID.
+
+
+* Get the current context details
+    CALL METHOD CL_UJ_CONTEXT=>GET_CUR_CONTEXT
+      RECEIVING
+        RO_CONTEXT = CONTEXT_RO.
+    CONTEXT_RO->SWITCH_TO_SRVADMIN( ).
+
+* Assign the user details
+    L_USER = CONTEXT_RO->DS_USER.
+    L_USER-USER_ID = L_USER_ID.
+
+    TRY.
+        CALL METHOD CL_UJ_CONTEXT=>SET_CUR_CONTEXT
+          EXPORTING
+            I_APPSET_ID = I_APPSET_ID
+            IS_USER     = L_USER
+            I_APPL_ID   = I_APPL_ID.
+
+      CATCH CX_UJ_OBJ_NOT_FOUND .
+        L_LOG = GET_MESSAGE_TEXT( I_MSGTYPE = 'E'  I_MSGNO = SY-MSGNO ).
+        CL_UJK_LOGGER=>LOG( I_OBJECT = L_LOG ).
+    ENDTRY.
+
+************************************ SWAP_USER END ***************************************
+
+  ENDMETHOD.
+
+METHOD CHANGE_LOG_USER.
+************************************ CHANGE_LOG_USER START ***************************************
+
+    DATA: CONTEXT_RO TYPE REF TO IF_UJ_CONTEXT,
+          L_LOG      TYPE STRING,
+          L_PATH     TYPE STRING,
+          L_STRING1  TYPE STRING,
+          L_STRING2  TYPE STRING,
+          L_STRING3  TYPE STRING,
+          LENGTH     TYPE I,
+          L_PATH2    TYPE UJ_DOCNAME,
+          RESULT_TAB TYPE MATCH_RESULT_TAB,
+          LS_RESULT  TYPE MATCH_RESULT,
+          L_USER     TYPE UJ0_S_USER.
+
+
+* Get the current context details
+    CALL METHOD CL_UJ_CONTEXT=>GET_CUR_CONTEXT
+      RECEIVING
+        RO_CONTEXT = CONTEXT_RO.
+    CONTEXT_RO->SWITCH_TO_SRVADMIN( ).
+
+* Assign the user details
+    L_USER = CONTEXT_RO->DS_USER.
+    IF L_USER-USER_ID NE SY-UNAME.
+      L_USER-USER_ID = SY-UNAME.
+
+
+      TRY.
+          CALL METHOD CL_UJ_CONTEXT=>SET_CUR_CONTEXT
+            EXPORTING
+              I_APPSET_ID = I_APPSET_ID
+              IS_USER     = L_USER
+              I_APPL_ID   = I_APPL_ID.
+
+        CATCH CX_UJ_OBJ_NOT_FOUND .
+          L_LOG = GET_MESSAGE_TEXT( I_MSGTYPE = 'E'  I_MSGNO = SY-MSGNO ).
+          CL_UJK_LOGGER=>LOG( I_OBJECT = L_LOG ).
+      ENDTRY.
+
+      L_PATH = CL_UJK_MODEL=>G_LOG_PATH.
+      FIND SY-UNAME IN L_PATH.
+      IF SY-SUBRC NE 0.
+
+        SPLIT L_PATH AT '\PRIVATEPUBLICATIONS\' INTO L_STRING1 L_STRING2.
+        FIND FIRST OCCURRENCE OF '\' IN L_STRING2  RESULTS RESULT_TAB.
+        READ TABLE RESULT_TAB INTO LS_RESULT INDEX 1.
+        LENGTH = STRLEN( L_STRING2 ) - LS_RESULT-OFFSET.
+        L_STRING3 = L_STRING2+LS_RESULT-OFFSET(LENGTH).
+        CONCATENATE L_STRING1 '\PRIVATEPUBLICATIONS\' SY-UNAME L_STRING3 INTO L_PATH2.
+        CL_UJK_MODEL=>G_LOG_PATH = L_PATH2.
+        TRY .
+            CL_UJK_LOGGER=>SAVE_LOG( I_PATH = L_PATH2 ).
+          CATCH CX_UJ_STATIC_CHECK.
+
+        ENDTRY.
+
+
+      ENDIF.
+    ENDIF.
+
+************************************ CHANGE_LOG_USER END ******************************************
+  ENDMETHOD.
+
+
+  METHOD GET_MESSAGE_TEXT.
+************************************ GET_MESSAGE_TEXT START ***************************************
+
+    DATA:
+      L_MSGTYPE       TYPE SY-MSGTY VALUE 'I',
+      L_MSGV1         TYPE SY-MSGV1,
+      L_MSGV2         TYPE SY-MSGV2,
+      L_MSGV3         TYPE SY-MSGV3,
+      L_MSGV4         TYPE SY-MSGV4,
+      P_MESSAGE_CLASS TYPE SY-MSGID VALUE 'UJD_EXCEPTION'.
+
+
+    IF I_MSGTYPE IS SUPPLIED.
+      L_MSGTYPE = I_MSGTYPE.
+    ENDIF.
+
+    IF I_MSGV1 IS SUPPLIED AND I_MSGV2 IS SUPPLIED AND I_MSGV3 IS SUPPLIED AND I_MSGV4 IS SUPPLIED.
+      L_MSGV1 = I_MSGV1. L_MSGV2 = I_MSGV2. L_MSGV3 = I_MSGV3. L_MSGV4 = I_MSGV4.
+      MESSAGE ID P_MESSAGE_CLASS TYPE L_MSGTYPE NUMBER I_MSGNO
+            INTO R_TEXT
+            WITH L_MSGV1 L_MSGV2 L_MSGV3 L_MSGV4.
+    ELSEIF I_MSGV1 IS SUPPLIED AND I_MSGV2 IS SUPPLIED AND I_MSGV3 IS SUPPLIED AND I_MSGV4 IS NOT SUPPLIED.
+      L_MSGV1 = I_MSGV1. L_MSGV2 = I_MSGV2. L_MSGV3 = I_MSGV3.
+      MESSAGE ID P_MESSAGE_CLASS TYPE L_MSGTYPE NUMBER I_MSGNO
+            INTO R_TEXT
+            WITH L_MSGV1 L_MSGV2 L_MSGV3.
+    ELSEIF I_MSGV1 IS SUPPLIED AND I_MSGV2 IS SUPPLIED AND I_MSGV3 IS NOT SUPPLIED AND I_MSGV4 IS NOT SUPPLIED.
+      L_MSGV1 = I_MSGV1. L_MSGV2 = I_MSGV2.
+      MESSAGE ID P_MESSAGE_CLASS TYPE L_MSGTYPE NUMBER I_MSGNO
+            INTO R_TEXT
+            WITH L_MSGV1 L_MSGV2.
+    ELSEIF I_MSGV1 IS SUPPLIED AND I_MSGV2 IS NOT SUPPLIED AND I_MSGV3 IS NOT SUPPLIED AND I_MSGV4 IS NOT SUPPLIED.
+      L_MSGV1 = I_MSGV1.
+      MESSAGE ID P_MESSAGE_CLASS TYPE L_MSGTYPE NUMBER I_MSGNO
+            INTO R_TEXT
+            WITH L_MSGV1.
+    ELSEIF I_MSGV1 IS NOT SUPPLIED AND I_MSGV2 IS NOT SUPPLIED AND I_MSGV3 IS NOT SUPPLIED AND I_MSGV4 IS NOT SUPPLIED.
+      MESSAGE ID P_MESSAGE_CLASS TYPE L_MSGTYPE NUMBER I_MSGNO
+            INTO R_TEXT.
+    ELSE.
+      "error error
+    ENDIF.
+
+************************************ GET_MESSAGE_TEXT END ***************************************
+  ENDMETHOD.
+
+
 ENDCLASS.
