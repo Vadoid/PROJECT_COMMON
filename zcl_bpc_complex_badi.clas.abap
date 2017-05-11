@@ -56,6 +56,18 @@ public section.
       !CT_DATA type STANDARD TABLE optional
     raising
       CX_UJ_CUSTOM_LOGIC .
+  class-methods C_SNAPSHOT_CLEAR
+    importing
+      !I_APPSET_ID type UJ_APPSET_ID
+      !I_APPL_ID type UJ_APPL_ID
+      !IT_PARAM type UJK_T_SCRIPT_LOGIC_HASHTABLE optional
+      !IT_CV type UJK_T_CV
+    exporting
+      !ET_MESSAGE type UJ0_T_MESSAGE
+    changing
+      !CT_DATA type STANDARD TABLE optional
+    raising
+      CX_UJ_CUSTOM_LOGIC .
   class-methods C_FXTRANS
     importing
       !I_APPSET_ID type UJ_APPSET_ID
@@ -1516,7 +1528,9 @@ CLASS ZCL_BPC_COMPLEX_BADI IMPLEMENTATION.
       READ TABLE ZT_FLAGS WITH KEY PROJECT = LS_PROJECT-L1_ID INTO ZS_FLAGS.
       CHECK ZS_FLAGS IS NOT INITIAL.
 
-      IF ZS_FLAGS-SIGNEDDATA = 1 OR ZS_FLAGS-SIGNEDDATA = 2. "OR ZS_FLAGS-SIGNEDDATA = 3.
+      "IF ZS_FLAGS-SIGNEDDATA = 1 OR ZS_FLAGS-SIGNEDDATA = 2. "OR ZS_FLAGS-SIGNEDDATA = 3.
+
+       IF ZS_FLAGS-SIGNEDDATA = 2. "Change on 11.05.2017 following CR from JA. Changed by VZ.
 
         READ TABLE COST_FLAGS WITH KEY TABLE_LINE = <LS_COST_ELEMENT> TRANSPORTING NO FIELDS.
         IF SY-SUBRC = 0.
@@ -2734,6 +2748,294 @@ ENDIF.
   ENDMETHOD.
 
 
+  METHOD C_SNAPSHOT_CLEAR.
+
+    DATA: BEGIN OF LS_PROJECT,
+            ID         TYPE CHAR32,
+            L1CURRENCY TYPE CHAR32,
+            L1_ID      TYPE CHAR32,
+            WBS_STATUS TYPE CHAR32,
+            CURRENCY   TYPE CHAR32,
+
+          END OF LS_PROJECT.
+
+    DATA: BEGIN OF LS_TIME,
+            ID           TYPE CHAR32,
+            PERIOD       TYPE CHAR32,
+            COPYFORECAST TYPE CHAR32,
+          END OF LS_TIME.
+
+    DATA: LT_PROJECT      LIKE SORTED TABLE OF LS_PROJECT WITH UNIQUE KEY ID,
+          LT_PROJECT_TEMP LIKE SORTED TABLE OF LS_PROJECT WITH UNIQUE KEY ID,
+          LS_PROJECT_L1   LIKE LS_PROJECT,
+          LT_TIME         LIKE TABLE OF LS_TIME,
+          FLAG            TYPE CHAR1.
+
+
+    DATA: LS_SEL   TYPE UJ0_S_SEL,
+          LT_SEL   TYPE UJ0_T_SEL,
+          ZS_FLAGS TYPE ZBPC_PF,
+          ZT_FLAGS TYPE ZBPC_PF_T.
+
+
+
+    DATA: LO_DIM       TYPE REF TO CL_UJA_DIM,
+          LR_DIM_DATA  TYPE REF TO IF_UJA_DIM_DATA,
+          LT_ATTR_NAME TYPE UJA_T_ATTR_NAME,
+          LR_DATA      TYPE REF TO DATA,
+          LS_MD        TYPE REF TO DATA.
+
+    DATA:   COST_FLAGS                TYPE UJA_T_DIM_MEMBER.
+
+    FIELD-SYMBOLS: <LT_MD> TYPE STANDARD TABLE,
+                   <LS_MD> TYPE ANY.
+
+
+*****************GET FLAG COST_ELEMENTS******************
+
+    TRY.
+        CREATE OBJECT LO_DIM
+          EXPORTING
+            I_APPSET_ID = I_APPSET_ID
+            I_DIMENSION = 'COST_ELEMENT'.
+
+      CATCH CX_UJA_ADMIN_ERROR.
+    ENDTRY.
+
+    LR_DIM_DATA = LO_DIM.
+
+    "GET THE CHILD NODES
+    CALL METHOD LR_DIM_DATA->GET_CHILDREN_MBR
+      EXPORTING
+        I_PARENT_MBR     = 'TOTAL_FLAGS'
+        IF_ONLY_BASE_MBR = 'X'
+      IMPORTING
+        ET_MEMBER        = COST_FLAGS.
+
+*****************GET FULL PROJECT MD ***************
+
+    REFRESH: LT_ATTR_NAME, LT_SEL, LT_PROJECT.
+    CLEAR: LS_SEL.
+    TRY .
+
+        CREATE OBJECT LO_DIM
+          EXPORTING
+            I_APPSET_ID = I_APPSET_ID
+            I_DIMENSION = 'PROJECT'.
+
+      CATCH CX_UJA_ADMIN_ERROR .
+    ENDTRY.
+
+    LR_DIM_DATA = LO_DIM.
+
+    " Append the list of attribute(s) for which the master data is generated
+    APPEND: 'ID' TO LT_ATTR_NAME,
+    'L1CURRENCY' TO LT_ATTR_NAME,
+    'L1_ID' TO LT_ATTR_NAME,
+    'WBS_STATUS' TO LT_ATTR_NAME,
+    'CURRENCY' TO LT_ATTR_NAME.
+
+
+    LS_SEL-DIMENSION = 'PROJECT'.
+    LS_SEL-ATTRIBUTE = 'CALC'.
+    LS_SEL-SIGN = 'I'.
+    LS_SEL-OPTION = 'EQ'.
+    LS_SEL-LOW = 'N'.
+    APPEND LS_SEL TO LT_SEL.
+
+
+    " GET DIMENSION MEMBERS
+    TRY.
+        CALL METHOD LR_DIM_DATA->READ_MBR_DATA
+          EXPORTING
+            IT_ATTR_LIST = LT_ATTR_NAME    "attribute list
+            IT_SEL       = LT_SEL          "condition data
+          IMPORTING
+            ER_DATA      = LR_DATA.        "reference of master data table
+
+      CATCH CX_UJA_ADMIN_ERROR .
+    ENDTRY.
+
+    "Assign the referenced memory area to a field-symbol
+    ASSIGN LR_DATA->* TO <LT_MD>.
+
+    CLEAR LT_PROJECT_TEMP.
+
+    MOVE-CORRESPONDING <LT_MD> TO LT_PROJECT.
+    LOOP AT LT_PROJECT INTO LS_PROJECT.
+      IF LS_PROJECT-L1_ID = LS_PROJECT-ID.
+        CHECK LS_PROJECT-WBS_STATUS <> 'CLOSED'.
+      ENDIF.
+      APPEND LS_PROJECT TO LT_PROJECT_TEMP.
+    ENDLOOP.
+
+    LT_PROJECT = LT_PROJECT_TEMP.
+*  LOOP AT <LT_MD> ASSIGNING <LS_MD>.
+*    MOVE-CORRESPONDING <LS_MD> TO LS_PROJECT.
+*    APPEND LS_PROJECT TO LT_PROJECT.
+*  ENDLOOP.
+
+****************************************************
+
+*****************GET TIME MD ***************
+
+    REFRESH: LT_ATTR_NAME, LT_SEL, LT_TIME.
+    CLEAR: LS_SEL.
+    TRY .
+
+        CREATE OBJECT LO_DIM
+          EXPORTING
+            I_APPSET_ID = I_APPSET_ID
+            I_DIMENSION = 'TIME'.
+
+      CATCH CX_UJA_ADMIN_ERROR .
+    ENDTRY.
+
+    LR_DIM_DATA = LO_DIM.
+
+    " Append the list of attribute(s) for which the master data is generated
+    APPEND: 'ID' TO LT_ATTR_NAME,
+            'COPYFORECAST' TO LT_ATTR_NAME,
+            'PERIOD' TO LT_ATTR_NAME.
+
+
+    LS_SEL-DIMENSION = 'TIME'.
+    LS_SEL-ATTRIBUTE = 'CURRMONTH'.
+    LS_SEL-SIGN = 'I'.
+    LS_SEL-OPTION = 'EQ'.
+    LS_SEL-LOW = 'C'.
+    APPEND LS_SEL TO LT_SEL.
+
+
+    " GET DIMENSION MEMBERS
+    TRY.
+        CALL METHOD LR_DIM_DATA->READ_MBR_DATA
+          EXPORTING
+            IT_ATTR_LIST = LT_ATTR_NAME    "attribute list
+            IT_SEL       = LT_SEL          "condition data
+          IMPORTING
+            ER_DATA      = LR_DATA.        "reference of master data table
+
+      CATCH CX_UJA_ADMIN_ERROR .
+    ENDTRY.
+
+    "Assign the referenced memory area to a field-symbol
+    ASSIGN LR_DATA->* TO <LT_MD>.
+    LOOP AT <LT_MD> ASSIGNING <LS_MD>.
+      MOVE-CORRESPONDING <LS_MD> TO LS_TIME.
+      APPEND LS_TIME TO LT_TIME.
+    ENDLOOP.
+
+****************************************************
+
+****************** GET FLAGS *************************
+    CLEAR: LS_SEL, LT_SEL.
+
+    LS_SEL-ATTRIBUTE = 'ID'.
+    LS_SEL-SIGN = 'I'.
+    LS_SEL-OPTION = 'EQ'.
+
+    LS_SEL-DIMENSION = 'AUDITTRAIL'.
+    LS_SEL-LOW = 'APPROVE'.
+    APPEND LS_SEL TO LT_SEL.
+
+    LS_SEL-DIMENSION = 'CATEGORY'.
+    LS_SEL-LOW = 'WFORECAST'.
+    APPEND LS_SEL TO LT_SEL.
+
+    LS_SEL-DIMENSION = 'COST_ELEMENT'.
+    LS_SEL-LOW = 'CE_1023'.
+    APPEND LS_SEL TO LT_SEL.
+
+    LS_SEL-DIMENSION = 'CURRENCY'.
+    LS_SEL-LOW = 'LC'.
+    APPEND LS_SEL TO LT_SEL.
+
+    LS_SEL-DIMENSION = 'TIME'.
+    LS_SEL-LOW = LS_TIME-ID.
+    APPEND LS_SEL TO LT_SEL.
+
+    TRY.
+        CALL METHOD ZCL_BPC_COMPLEX_BADI=>GET_MODEL_DATA
+          EXPORTING
+            LT_SEL      = LT_SEL
+            I_APPL_ID   = 'PROJECTFORECAST'
+            I_APPSET_ID = I_APPSET_ID
+          IMPORTING
+            ET_PF       = ZT_FLAGS.
+      CATCH CX_UJ_CUSTOM_LOGIC.
+    ENDTRY.
+******************************************************
+******************************************************
+******************************************************
+******************************************************
+    DATA:  LR_REC        TYPE REF TO DATA,
+           LR_RESULT_REC TYPE REF TO DATA,
+           LT_FINAL      TYPE REF TO DATA.
+
+
+    FIELD-SYMBOLS: <LS_REC>        TYPE ANY,
+                   <LS_RESULT_REC> TYPE ANY,
+                   <LS_SIGNEDDATA> TYPE ANY,
+                   <LT_FINAL>      TYPE STANDARD TABLE.
+
+    FIELD-SYMBOLS: <LS_TIME>         TYPE ANY,
+                   <LS_CATEGORY>     TYPE ANY,
+                   <LS_PROJECT>      TYPE ANY,
+                   <LS_CURRENCY>     TYPE ANY,
+                   <LS_AUDITTRAIL>   TYPE ANY,
+                   <LS_COST_ELEMENT> TYPE ANY,
+                   <LS_LINE_ITEM>    TYPE ANY.
+
+
+
+    CREATE DATA LT_FINAL LIKE CT_DATA.
+    ASSIGN LT_FINAL->* TO <LT_FINAL>.
+    CREATE DATA LR_RESULT_REC LIKE LINE OF CT_DATA.
+    ASSIGN LR_RESULT_REC->* TO <LS_RESULT_REC>.
+    CREATE DATA LR_REC LIKE LINE OF CT_DATA.
+    ASSIGN LR_REC->* TO <LS_REC>.
+
+
+    LOOP AT CT_DATA ASSIGNING <LS_REC>.
+      <LS_RESULT_REC> = <LS_REC>.
+
+      ASSIGN COMPONENT 'CATEGORY' OF STRUCTURE <LS_RESULT_REC> TO <LS_CATEGORY>.
+      ASSIGN COMPONENT 'AUDITTRAIL' OF STRUCTURE <LS_RESULT_REC> TO <LS_AUDITTRAIL>.
+      ASSIGN COMPONENT 'PROJECT' OF STRUCTURE <LS_RESULT_REC> TO <LS_PROJECT>.
+      ASSIGN COMPONENT 'COST_ELEMENT' OF STRUCTURE <LS_RESULT_REC> TO <LS_COST_ELEMENT>.
+      ASSIGN COMPONENT 'SIGNEDDATA' OF STRUCTURE <LS_RESULT_REC> TO <LS_SIGNEDDATA>.
+
+      CLEAR: LS_PROJECT, ZS_FLAGS.
+
+      CHECK <LS_SIGNEDDATA> <> 0.
+
+      READ TABLE LT_PROJECT WITH TABLE KEY ID = <LS_PROJECT> INTO LS_PROJECT.
+
+      READ TABLE LT_PROJECT WITH TABLE KEY ID = LS_PROJECT-L1_ID TRANSPORTING NO FIELDS.
+      CHECK SY-SUBRC = 0.
+
+      READ TABLE ZT_FLAGS WITH KEY PROJECT = LS_PROJECT-L1_ID INTO ZS_FLAGS.
+      CHECK ZS_FLAGS IS NOT INITIAL.
+
+      "IF ZS_FLAGS-SIGNEDDATA = 1 OR ZS_FLAGS-SIGNEDDATA = 2. "OR ZS_FLAGS-SIGNEDDATA = 3.
+
+      IF ZS_FLAGS-SIGNEDDATA = 2. "Change on 11.05.2017 following CR from JA. Changed by VZ.
+
+        <LS_SIGNEDDATA> = 0.
+        COLLECT <LS_RESULT_REC> INTO <LT_FINAL>.
+
+
+      ENDIF.
+
+    ENDLOOP.
+
+    CT_DATA = <LT_FINAL>.
+
+
+  ENDMETHOD.
+
+
   METHOD C_WARSTATUSCHANGE.
 
     DATA: BEGIN OF LS_COST_ELEMENT,
@@ -3326,6 +3628,21 @@ WHEN 'CLEAR'.
 
 TRY.
       CALL METHOD ZCL_BPC_COMPLEX_BADI=>CLEAR_DATA
+      EXPORTING
+        it_param = it_param
+        it_cv = it_cv
+        i_appl_id =  i_appl_id
+        i_appset_id = i_appset_id
+      CHANGING
+        ct_data = ct_data.
+    CATCH CX_UJ_CUSTOM_LOGIC.
+    ENDTRY.
+
+"Additional clear for snapshot based on project status - 11.05.2017
+WHEN 'CLEAR_SNAPSHOT'.
+
+TRY.
+      CALL METHOD ZCL_BPC_COMPLEX_BADI=>C_SNAPSHOT_CLEAR
       EXPORTING
         it_param = it_param
         it_cv = it_cv

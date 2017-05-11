@@ -8,31 +8,18 @@ public section.
   data I_APPSET_ID type UJ_APPSET_ID .
   data I_APPL_ID type UJ_APPL_ID .
   data I_DIMENSION_ID type UJ_DIM_NAME .
-  data IT_CV type UJK_T_CV .
-  data IT_PARAM type UJK_T_SCRIPT_LOGIC_HASHTABLE .
 
-  methods COPY_COMMENTS
-    importing
-      !LV_CATEGORY_FROM type STRING
-      !LV_CATEGORY_TO type STRING
-      !LV_TIME_FROM type UJ_DIM_MEMBER optional
-      !LV_TIME_TO type UJ_DIM_MEMBER optional
-      !TIMESCOPE type SORTED TABLE
-    exporting
-      !ET_MESSAGE type UJ0_T_MESSAGE .
   methods CONSTRUCTOR
     importing
       !I_ENV_ID type UJ_APPSET_ID optional
       !I_MOD_ID type UJ_APPL_ID optional
-      !I_DIM_ID type UJ_DIM_NAME optional
-      !I_T_CV type UJK_T_CV optional
-      !I_T_PARAM type UJK_T_SCRIPT_LOGIC_HASHTABLE optional .
-  class-methods PERIOD_OFFSET
+      !I_DIM_ID type UJ_DIM_NAME optional .
+  methods PERIOD_OFFSET
     importing
-      !IMPORT_PERIOD type UJA_S_DIM_MEMBER
+      !IMPORT_PERIOD type CHAR7
       !OFFSET type UJ_SDATA
     returning
-      value(EXPORT_PERIOD) type UJA_S_DIM_MEMBER .
+      value(EXPORT_PERIOD) type CHAR7 .
   class-methods TEST_AND_DEBUG .
   methods TARGET_ACCS
     importing
@@ -49,25 +36,15 @@ public section.
       !IT_SEL type UJ0_T_SEL optional
     exporting
       value(OUTPUT_DATA) type STANDARD TABLE .
-  methods GET_INACTIVE_ENTITY
-    importing
-      !GET_EXTRA_DIM type CHAR1 optional
-    returning
-      value(OUTPUT_R_DATA) type ref to DATA .
   methods GET_PARENT_MD
     importing
       !PARENT_MBR type UJ_DIM_MEMBER
       !I_DIMENSION_ID type UJ_DIM_NAME optional
     returning
       value(OUTPUT_DATA) type UJA_T_DIM_MEMBER .
-  methods GET_SNAPSHOT_ID
-    importing
-      !CURRENT_PERIOD type UJA_S_DIM_MEMBER
-    returning
-      value(FCST_SNAPSHOT) type STRING .
   methods TIME
     importing
-      !CATEGORY type STRING optional
+      !CATEGORY type STRING
       !EXTEND type INT4 optional
     exporting
       !TIMEQRTLY type SORTED TABLE
@@ -84,13 +61,6 @@ public section.
       !ET_MESSAGE type UJ0_T_MESSAGE
       !ET_ERROR_RECORDS type STANDARD TABLE
       !LR_DATA type ref to DATA .
-  methods GET_MD_FROM_CONTEXT
-    importing
-      !I_DIMENSION_ID type UJ_DIM_NAME
-    changing
-      !LT_SEL type UJ0_T_SEL optional
-    returning
-      value(OUTPUT_R_DATA) type ref to DATA .
   methods READ_MASTER_DATA
     importing
       !I_DIMENSION_ID type UJ_DIM_NAME
@@ -143,10 +113,6 @@ public section.
       !OUTPUT_DATA type HASHED TABLE .
   PROTECTED SECTION.
 private section.
-
-  methods GET_COMMENTS_TABLE
-    returning
-      value(E_TABNAME) type TABNAME .
 ENDCLASS.
 
 
@@ -154,12 +120,6 @@ ENDCLASS.
 CLASS ZCL_BPC_COMMON IMPLEMENTATION.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method ZCL_BPC_COMMON=>CHANGE_LOG_USER
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] I_APPSET_ID                    TYPE        UJ_APPSET_ID
-* | [--->] I_APPL_ID                      TYPE        UJ_APPL_ID
-* +--------------------------------------------------------------------------------------</SIGNATURE>
 METHOD CHANGE_LOG_USER.
 ************************************ CHANGE_LOG_USER START ***************************************
 
@@ -225,485 +185,16 @@ METHOD CHANGE_LOG_USER.
   ENDMETHOD.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_BPC_COMMON->CONSTRUCTOR
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] I_ENV_ID                       TYPE        UJ_APPSET_ID(optional)
-* | [--->] I_MOD_ID                       TYPE        UJ_APPL_ID(optional)
-* | [--->] I_DIM_ID                       TYPE        UJ_DIM_NAME(optional)
-* | [--->] I_T_CV                         TYPE        UJK_T_CV(optional)
-* | [--->] I_T_PARAM                      TYPE        UJK_T_SCRIPT_LOGIC_HASHTABLE(optional)
-* +--------------------------------------------------------------------------------------</SIGNATURE>
   method CONSTRUCTOR.
-*&---------------------------------------------------------------------*
-*&  Class            ZCL_BPC_COMMON
-*&  Method           CONSTRUCTOR
-*&---------------------------------------------------------------------*
-****************************************************************************
-* Program type....:  Serco Custom Method
-* Author...........: Copperman Consulting
-* Date.............: February 2017
-* ----------------------------------------------------------------------
-* Description......: The class handles some service operations to support
-*                    Serco Planning project.
-*
-****************************************************************************
-* Change Log
-****************************************************************************
-* Changed on:                 By:
-* Description:
-****************************************************************************
 
 i_appset_id = i_env_id.
 i_appl_id = i_mod_id.
 i_dimension_id = i_dim_id.
-it_param = i_t_param.
-it_cv = i_t_cv.
-
 
 
   endmethod.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_BPC_COMMON->COPY_COMMENTS
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] LV_CATEGORY_FROM               TYPE        STRING
-* | [--->] LV_CATEGORY_TO                 TYPE        STRING
-* | [--->] LV_TIME_FROM                   TYPE        UJ_DIM_MEMBER(optional)
-* | [--->] LV_TIME_TO                     TYPE        UJ_DIM_MEMBER(optional)
-* | [--->] TIMESCOPE                      TYPE        SORTED TABLE
-* | [<---] ET_MESSAGE                     TYPE        UJ0_T_MESSAGE
-* +--------------------------------------------------------------------------------------</SIGNATURE>
-  method COPY_COMMENTS.
-
-
-    DATA: ls_param       TYPE ujk_s_script_logic_hashentry,
-          ls_time TYPE UJ_DIM_MEMBER,
-          lv_project     TYPE  uj_dim_member,
-          lv_tabname     TYPE  tabname,
-          cs_sqmark      TYPE char1 VALUE '"',
-          lt_projects    TYPE TABLE OF string,
-          ls_projects    TYPE string,
-          lo_ex          TYPE REF TO cx_uj_custom_logic,
-          ls_message     TYPE uj0_s_message,
-          lt_message     TYPE uj0_t_message,
-          ls_recordid    TYPE uj0_uni_idc,
-          lt_recordid    TYPE ujc_t_cmt_recordid.
-
-    DATA: lo_cmt_manager TYPE REF TO cl_ujc_cmtmanager,
-          lt_dimlist     TYPE ujc_t_cmtbl_dimlist,
-          ls_dimlist     TYPE ujc_s_cmtbl_dimlist,
-          lt_comments    TYPE ujc_t_compact_cmtbl,
-          ls_comments    TYPE ujc_s_compact_cmtbl,
-          ef_success     TYPE flag,
-          lv_tabix       TYPE i,
-          lv_ctabix      TYPE i,
-          et_error_cmtbl TYPE ujc_t_compact_cmtbl.
-
-
-    DATA: BEGIN OF ls_commkey,
-            mandt    TYPE mandt,
-            recordid TYPE uj0_uni_idc,
-          END OF ls_commkey.
-
-    DATA: lt_commkey LIKE TABLE OF ls_commkey.
-
-        TRY.
-            " Create Comment Manager
-
-            CREATE OBJECT lo_cmt_manager
-              EXPORTING
-                i_appset_id = i_appset_id
-                i_appl_id   = i_appl_id.
-
-          CATCH cx_ujc_exception.
-            ls_message-msgty = 'E'.
-            ls_message-msgv1 = i_appl_id.
-            ls_message-message = 'Cannot get handle to comments for model '.
-            APPEND ls_message TO et_message.
-            RAISE EXCEPTION TYPE cx_uj_custom_logic.
-        ENDTRY.
-
-******Read Destination Comments****************
-
-        ls_dimlist-dim_name = 'CATEGORY' .
-        ls_dimlist-dim_value = lv_category_to.
-        APPEND ls_dimlist TO lt_dimlist.
-
-
-
-        ls_dimlist-dim_name = 'TIME' .
-
-        IF LV_TIME_TO IS NOT INITIAL.
-        ls_dimlist-dim_value = LV_TIME_TO.
-        APPEND ls_dimlist TO lt_dimlist.
-
-        ELSE.
-
-        LOOP AT TIMESCOPE INTO LS_TIME.
-        ls_dimlist-dim_value = LS_TIME.
-        APPEND ls_dimlist TO lt_dimlist.
-        ENDLOOP.
-
-        ENDIF.
-
-
-        TRY.
-            IF lt_dimlist[] IS NOT INITIAL.
-              CALL METHOD lo_cmt_manager->get_cmt
-                EXPORTING
-*                 i_keyword         = i_keyword
-*                 it_priority       = lt_priority
-                  it_dim_members    = lt_dimlist
-*                 i_measures        = i_measures
-*                 i_originator      = i_originator
-*                 i_cmt_date_from   = i_cmt_date_from
-*                 i_cmt_date_to     = i_cmt_date_to
-                  if_with_history   = abap_true
-                  if_search_keyword = abap_true
-                IMPORTING
-                  et_compact_cmtbl  = lt_comments
-                CHANGING
-                  ct_message        = et_message.
-            ENDIF.
-          CATCH cx_ujc_exception.
-
-            ls_message-msgty = 'E'.
-            ls_message-msgv1 = i_appl_id.
-            ls_message-message = 'No Comments retrieved for model '.
-            APPEND ls_message TO et_message.
-        "    RAISE EXCEPTION TYPE cx_uj_custom_logic.
-
-       ENDTRY.
-
-
-        LOOP AT lt_comments INTO ls_comments.
-          ls_commkey-mandt = sy-mandt.
-          ls_commkey-recordid = ls_comments-recordid.
-          APPEND ls_commkey TO lt_commkey.
-        ENDLOOP.
-
-
-
-        TRY.
-            IF lt_commkey[] IS NOT INITIAL.
-
-
-              lv_tabname = me->GET_COMMENTS_TABLE( ).
-
-              DELETE (lv_tabname) FROM TABLE @lt_commkey.
-
-            ENDIF.
-          CATCH cx_ujc_exception .
-            APPEND LINES OF lt_message TO et_message.
-            RAISE EXCEPTION TYPE cx_uj_custom_logic.
-        ENDTRY.
-
-******Read Destination Comments****************
-
-******Read Source Comments****************
-
-        CLEAR lt_dimlist[].
-        ls_dimlist-dim_name = 'CATEGORY' .
-        ls_dimlist-dim_value = lv_category_from.
-        APPEND ls_dimlist TO lt_dimlist.
-
-
-        IF LV_TIME_FROM IS NOT INITIAL.
-        ls_dimlist-dim_value = LV_TIME_FROM.
-        APPEND ls_dimlist TO lt_dimlist.
-
-        ELSE.
-
-        LOOP AT TIMESCOPE INTO LS_TIME.
-        ls_dimlist-dim_value = LS_TIME.
-        APPEND ls_dimlist TO lt_dimlist.
-        ENDLOOP.
-
-        ENDIF.
-
-        TRY.
-            IF lt_dimlist[] IS NOT INITIAL.
-              CALL METHOD lo_cmt_manager->get_cmt
-                EXPORTING
-*                 i_keyword         = i_keyword
-*                 it_priority       = lt_priority
-                  it_dim_members    = lt_dimlist
-*                 i_measures        = i_measures
-*                 i_originator      = i_originator
-*                 i_cmt_date_from   = i_cmt_date_from
-*                 i_cmt_date_to     = i_cmt_date_to
-                  if_with_history   = abap_false
-                  if_search_keyword = abap_true
-                IMPORTING
-                  et_compact_cmtbl  = lt_comments
-                CHANGING
-                  ct_message        = et_message.
-            ENDIF.
-          CATCH cx_ujc_exception.
-            ls_message-msgty = 'E'.
-            ls_message-msgv1 = i_appl_id.
-            ls_message-message = 'No Comments retrieved for model '.
-            APPEND ls_message TO et_message.
-            RAISE EXCEPTION TYPE cx_uj_custom_logic.
-        ENDTRY.
-******Read Source Comments****************
-
-        DELETE lt_comments WHERE scomment = '...'.
-        DELETE lt_comments WHERE scomment = space.
-
-        LOOP AT lt_comments INTO ls_comments.
-          lv_ctabix = sy-tabix.
-          LOOP AT ls_comments-dim_list INTO ls_dimlist.
-            lv_tabix = sy-tabix.
-            IF ls_dimlist-dim_name = 'CATEGORY' .
-              ls_dimlist-dim_value = lv_category_to .
-              MODIFY ls_comments-dim_list FROM ls_dimlist INDEX lv_tabix.
-            ENDIF.
-
-      IF ls_dimlist-dim_name = 'TIME' AND lv_time_to IS NOT INITIAL.
-        ls_dimlist-dim_value = lv_time_to .
-        MODIFY ls_comments-dim_list FROM ls_dimlist INDEX lv_tabix.
-      ENDIF.
-
-          ENDLOOP.
-          MODIFY lt_comments FROM ls_comments INDEX lv_ctabix.
-
-        ENDLOOP.
-
-        TRY.
-
-            CALL METHOD lo_cmt_manager->add_cmt
-              EXPORTING
-                it_compact_cmtbl = lt_comments
-              IMPORTING
-                ef_inserted      = ef_success
-                et_error_cmtbl   = et_error_cmtbl
-              CHANGING
-                ct_message       = et_message.
-
-          CATCH cx_ujc_exception.
-            ls_message-msgty = 'E'.
-            ls_message-msgv1 = i_appl_id.
-            ls_message-message = 'Error writing comments to model '.
-            APPEND ls_message TO et_message.
-            RAISE EXCEPTION TYPE cx_uj_custom_logic.
-
-        ENDTRY.
-
-*      CATCH cx_uj_custom_logic INTO lo_ex.
-*        lo_ex->messages = et_message.
-
-*    ENDTRY.
-
-
-
-
-  ENDMETHOD.
-
-
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Private Method ZCL_BPC_COMMON->GET_COMMENTS_TABLE
-* +-------------------------------------------------------------------------------------------------+
-* | [<-()] E_TABNAME                      TYPE        TABNAME
-* +--------------------------------------------------------------------------------------</SIGNATURE>
-  METHOD GET_COMMENTS_TABLE.
-
-* DATA: infocube type string,
-*       comments_table type string,
-*       comments_archive_table type string.
-*
-* "Get Infocube name
-*
-* SELECT SINGLE INFOCUBE FROM UJA_APPL INTO infocube
-*   WHERE APPSET_ID = i_appset_id
-*   and application_id = i_appl_id.
-*
-*comments_table = '/1CPMB/' && infocube+6(2) && infocube+9(3) && 'CMT'.
-
-    DATA: l_prefix       TYPE uja_s_prefix,           " prefix of (appset,appl)
-          lo_gentab      TYPE REF TO cl_uj_gen_table, " Singleton instance
-          lox_ex_handler TYPE REF TO cx_uj_static_check. " exception handler
-
-
-
-    SELECT SINGLE appset_prefix FROM uja_appset_info INTO l_prefix-appset_prefix
-                         WHERE appset_id = i_appset_id.
-
-    SELECT SINGLE appl_prefix FROM uja_appl INTO l_prefix-appl_prefix
-                       WHERE  appset_id = i_appset_id AND
-                              application_id = i_appl_id.
-
-
-
-    " get Singleton instance
-    CALL METHOD cl_uj_gen_table=>get_instance
-      IMPORTING
-        eo_instance = lo_gentab.
-
-    " get full table name using prefix + table type
-    TRY.
-
-        CALL METHOD lo_gentab->get_ddic_table_name
-          EXPORTING
-            i_table   = 'COMMENT'
-            is_prefix = l_prefix
-          IMPORTING
-            e_tabname = e_tabname.
-*            e_gotstate = e_gotstate.
-
-      CATCH cx_uj_gen_ddic_error INTO lox_ex_handler.
-    ENDTRY.
-
-  ENDMETHOD.
-
-
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_BPC_COMMON->GET_INACTIVE_ENTITY
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] GET_EXTRA_DIM                  TYPE        CHAR1(optional)
-* | [<-()] OUTPUT_R_DATA                  TYPE REF TO DATA
-* +--------------------------------------------------------------------------------------</SIGNATURE>
-  METHOD GET_INACTIVE_ENTITY.
-
-    INCLUDE ZINC_PLAN_BADI_COMMON_VARS. "Common Variables
-
-*** Properties for closed/inactive entities per model
-    " MODEL_STATUS FORMAT
-
-* Check entity type dimension from the instance Model
-
-***********************GET ENTITY DIM *******************************
-    LO_APPL_MGR = CL_UJA_BPC_ADMIN_FACTORY=>GET_APPLICATION_MANAGER(
-     I_APPSET_ID = I_APPSET_ID
-     I_APPLICATION_ID = I_APPL_ID ).
-    CLEAR LS_APPLICATION.
-    LO_APPL_MGR->GET(
-     EXPORTING
-     IF_WITH_MEASURES = ABAP_FALSE " BPC: Generic indicator
-     IF_SUMMARY = ABAP_FALSE " BPC: Generic indicator
-     IMPORTING
-     ES_APPLICATION = LS_APPLICATION ). " Applications table type
-
-    LOOP AT LS_APPLICATION-DIMENSIONS INTO LS_DIMENSIONS.
-      IF LS_DIMENSIONS-DIM_TYPE = 'E'.
-        ENTITY_DIM = LS_DIMENSIONS-DIMENSION.
-      ENDIF.
-    ENDLOOP.
-
-
-    CLEAR: LT_SEL, LS_SEL.
-
-    LS_SEL-DIMENSION = ENTITY_DIM.
-
-    CASE I_APPL_ID.
-
-    WHEN 'CASHFLOW'.
-
-    LS_SEL-ATTRIBUTE = CASHFLOW_STATUS.
-    LS_SEL-SIGN = 'I'.
-    LS_SEL-OPTION = 'EQ'.
-    LS_SEL-LOW = '04'.
-    APPEND LS_SEL TO LT_SEL.
-
-    WHEN 'INC_STATEMENT' OR 'CAPEX'.
-
-    LS_SEL-ATTRIBUTE = INC_STATEMENT_STATUS.
-    LS_SEL-SIGN = 'I'.
-    LS_SEL-OPTION = 'BT'.
-    LS_SEL-LOW = '03'.
-    LS_SEL-HIGH = '10'.
-    APPEND LS_SEL TO LT_SEL.
-
-    WHEN 'RESOURCE'.
-
-    IF GET_EXTRA_DIM = 'X'.
-
-    ENTITY_DIM = 'EMPLOYEE'.
-    LS_SEL-DIMENSION = ENTITY_DIM.
-    LS_SEL-ATTRIBUTE = RESOURCE_STATUS.
-    LS_SEL-SIGN = 'I'.
-    LS_SEL-OPTION = 'NE'.
-    LS_SEL-LOW = '3'.
-    APPEND LS_SEL TO LT_SEL.
-
-
-    ELSE.
-    LS_SEL-ATTRIBUTE = INC_STATEMENT_STATUS.
-    LS_SEL-SIGN = 'I'.
-    LS_SEL-OPTION = 'BT'.
-    LS_SEL-LOW = '03'.
-    LS_SEL-HIGH = '10'.
-    APPEND LS_SEL TO LT_SEL.
-    ENDIF.
-
-ENDCASE.
-
-    CALL METHOD ME->READ_MASTER_DATA
-      EXPORTING
-        I_DIMENSION_ID = ENTITY_DIM
-      IMPORTING
-        OUTPUT_R_DATA  =  OUTPUT_R_DATA
-      CHANGING
-        LT_SEL         = LT_SEL.
-
-
-
-**********************************************************************
-
-  ENDMETHOD.
-
-
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_BPC_COMMON->GET_MD_FROM_CONTEXT
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] I_DIMENSION_ID                 TYPE        UJ_DIM_NAME
-* | [<-->] LT_SEL                         TYPE        UJ0_T_SEL(optional)
-* | [<-()] OUTPUT_R_DATA                  TYPE REF TO DATA
-* +--------------------------------------------------------------------------------------</SIGNATURE>
-  METHOD GET_MD_FROM_CONTEXT.
-*************************************************************************
-*This method reads IT_CV and gets the master data for members in context*
-*it also recieves LT_SEL (optional) if the selection has to be expanded)
-*************************************************************************
-
-    DATA: CV_DIMENSION    TYPE UJK_S_CV,
-          LS_SEL            TYPE UJ0_S_SEL,
-          WA_MEMBER   TYPE UJ_DIM_MEMBER.
-
-     READ TABLE IT_CV INTO CV_DIMENSION WITH TABLE KEY DIM_UPPER_CASE = I_DIMENSION_ID.
-
-     LOOP AT CV_DIMENSION-MEMBER INTO WA_MEMBER.
-          LS_SEL-DIMENSION = I_DIMENSION_ID.
-          LS_SEL-ATTRIBUTE = 'ID'.
-          LS_SEL-SIGN = 'I'.
-          LS_SEL-OPTION = 'EQ'.
-          LS_SEL-LOW = WA_MEMBER.
-          APPEND LS_SEL TO LT_SEL.
-
-        ENDLOOP.
-
-           ME->READ_MASTER_DATA(
-          EXPORTING
-           I_DIMENSION_ID   = I_DIMENSION_ID
-          IMPORTING
-            OUTPUT_R_DATA = OUTPUT_R_DATA ).
-
-  ENDMETHOD.
-
-
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method ZCL_BPC_COMMON=>GET_MESSAGE_TEXT
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] I_MSGNO                        TYPE        SYMSGNO(optional)
-* | [--->] I_MSGV1                        TYPE        SYMSGV(optional)
-* | [--->] I_MSGV2                        TYPE        SYMSGV(optional)
-* | [--->] I_MSGV3                        TYPE        SYMSGV(optional)
-* | [--->] I_MSGV4                        TYPE        SYMSGV(optional)
-* | [--->] I_MSGTYPE                      TYPE        SYMSGTY(optional)
-* | [<-()] R_TEXT                         TYPE        STRING
-* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD GET_MESSAGE_TEXT.
 ************************************ GET_MESSAGE_TEXT START ***************************************
 
@@ -751,13 +242,6 @@ ENDCASE.
   ENDMETHOD.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_BPC_COMMON->GET_PARENT_MD
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] PARENT_MBR                     TYPE        UJ_DIM_MEMBER
-* | [--->] I_DIMENSION_ID                 TYPE        UJ_DIM_NAME(optional)
-* | [<-()] OUTPUT_DATA                    TYPE        UJA_T_DIM_MEMBER
-* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD GET_PARENT_MD.
 
      CALL METHOD READ_MASTER_DATA_HIERARCHY
@@ -772,107 +256,41 @@ ENDCASE.
   ENDMETHOD.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_BPC_COMMON->GET_SNAPSHOT_ID
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] CURRENT_PERIOD                 TYPE        UJA_S_DIM_MEMBER
-* | [<-()] FCST_SNAPSHOT                  TYPE        STRING
-* +--------------------------------------------------------------------------------------</SIGNATURE>
-  METHOD GET_SNAPSHOT_ID.
-    "Get Snapshot ID from Time DImension
+  method PERIOD_OFFSET.
 
-    DATA: BEGIN OF LS_TIME,
-            ID        TYPE CHAR32,
-            COPYFORECAST TYPE CHAR32,
-          END OF LS_TIME.
+*IMPORT_PERIOD
+*OFFSET
+*EXPORT_PERIOD
 
-    DATA: LT_TIME LIKE STANDARD TABLE OF LS_TIME,
-          MASTER_DATA TYPE REF TO DATA,
-          LT_SEL      TYPE UJ0_T_SEL,
-          LS_SEL      TYPE UJ0_S_SEL.
+DATA: SOURCE_MONTH TYPE char2,
+      SOURCE_YEAR TYPE char4.
 
-    FIELD-SYMBOLS: <DIMENSION_DATA> TYPE STANDARD TABLE.
-
-    CLEAR: LT_SEL, LS_SEL.
-
-    LS_SEL-DIMENSION = 'TIME'.
-    LS_SEL-ATTRIBUTE = 'ID'.
-    LS_SEL-SIGN = 'I'.
-    LS_SEL-OPTION = 'EQ'.
-    LS_SEL-LOW = CURRENT_PERIOD.
-    APPEND LS_SEL TO LT_SEL.
-
-    ME->READ_MASTER_DATA(
-      EXPORTING
-        I_DIMENSION_ID   =  LS_SEL-DIMENSION
-      IMPORTING
-        OUTPUT_R_DATA = MASTER_DATA
-      CHANGING
-        LT_SEL        = LT_SEL ).
-
-    ASSIGN MASTER_DATA->* TO <DIMENSION_DATA>.
-    MOVE-CORRESPONDING <DIMENSION_DATA> TO LT_TIME.
-
-READ TABLE LT_TIME INTO LS_TIME WITH KEY ID = CURRENT_PERIOD.
-FCST_SNAPSHOT = LS_TIME-COPYFORECAST.
-
-  ENDMETHOD.
+SOURCE_YEAR = IMPORT_PERIOD(4).
+SOURCE_MONTH = IMPORT_PERIOD+5(2).
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method ZCL_BPC_COMMON=>PERIOD_OFFSET
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] IMPORT_PERIOD                  TYPE        UJA_S_DIM_MEMBER
-* | [--->] OFFSET                         TYPE        UJ_SDATA
-* | [<-()] EXPORT_PERIOD                  TYPE        UJA_S_DIM_MEMBER
-* +--------------------------------------------------------------------------------------</SIGNATURE>
-  METHOD PERIOD_OFFSET.
-*offsets calendar year/period by the value provided
-*includes positive and negative offsets
+DO OFFSET TIMES.
 
-    DATA: SOURCE_MONTH    TYPE CHAR2,
-          SOURCE_YEAR     TYPE CHAR4,
-          OFFSET_NEGATIVE TYPE UJ_SDATA.
+  SOURCE_MONTH = SOURCE_MONTH + 1.
 
-    SOURCE_YEAR = IMPORT_PERIOD(4).
-    SOURCE_MONTH = IMPORT_PERIOD+5(2).
+  IF SOURCE_MONTH = 13.
+    SOURCE_YEAR = SOURCE_YEAR + 1.
+    SOURCE_MONTH = 01.
+  ENDIF.
 
-    IF OFFSET < 0. "include negative offset
-      OFFSET_NEGATIVE = OFFSET * -1.
-      DO OFFSET_NEGATIVE TIMES.
-        SOURCE_MONTH = SOURCE_MONTH - 1.
-        IF SOURCE_MONTH = 0.
-          SOURCE_YEAR = SOURCE_YEAR - 1.
-          SOURCE_MONTH = 12.
-        ENDIF.
-      ENDDO.
-    ELSE.
-      DO OFFSET TIMES.
-        SOURCE_MONTH = SOURCE_MONTH + 1.
-        IF SOURCE_MONTH = 13.
-          SOURCE_YEAR = SOURCE_YEAR + 1.
-          SOURCE_MONTH = 01.
-        ENDIF.
-      ENDDO.
-    ENDIF.
+  ENDDO.
 
-    IF STRLEN( SOURCE_MONTH ) = 1.
-      CONCATENATE SOURCE_YEAR '.0' SOURCE_MONTH INTO EXPORT_PERIOD.
-    ELSE.
-      CONCATENATE SOURCE_YEAR '.' SOURCE_MONTH INTO EXPORT_PERIOD.
-    ENDIF.
-  ENDMETHOD.
+IF STRLEN( SOURCE_MONTH ) = 1.
+
+  CONCATENATE SOURCE_YEAR '.0' SOURCE_MONTH INTO EXPORT_PERIOD.
+ELSE.
+  CONCATENATE SOURCE_YEAR '.' SOURCE_MONTH INTO EXPORT_PERIOD.
+  ENDIF.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method ZCL_BPC_COMMON=>READ_ACC_TRANS_RULES
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] I_APPSET_ID                    TYPE        UJ_APPSET_ID
-* | [--->] I_APPL_ID                      TYPE        UJ_APPL_ID
-* | [--->] TVARVC_NAME                    TYPE        RVARI_VNAM
-* | [<---] ET_MESSAGE                     TYPE        UJ0_T_MESSAGE
-* | [<---] OUTPUT_DATA                    TYPE        HASHED TABLE
-* +--------------------------------------------------------------------------------------</SIGNATURE>
+  endmethod.
+
+
   METHOD READ_ACC_TRANS_RULES.
 ************************************ READ_ACC_TRANS_RULES START **********************************
 ******* SIMPLE SAMPLE READ OF ACCOUNT TRANSFORMATION RULES **********************************************
@@ -1025,16 +443,6 @@ OUTPUT_DATA = LT_ACCOUNT_TR_RULES.
   ENDMETHOD.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method ZCL_BPC_COMMON=>READ_ACC_TRANS_RULESV2
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] I_APPSET_ID                    TYPE        UJ_APPSET_ID
-* | [--->] I_APPL_ID                      TYPE        UJ_APPL_ID
-* | [--->] TVARVC_NAME                    TYPE        RVARI_VNAM
-* | [--->] EXPAND                         TYPE        CHAR1(optional)
-* | [<---] ET_MESSAGE                     TYPE        UJ0_T_MESSAGE
-* | [<---] OUTPUT_DATA                    TYPE        HASHED TABLE
-* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD READ_ACC_TRANS_RULESV2.
 ************************************ READ_ACC_TRANS_RULES START **********************************
 ******* SIMPLE SAMPLE READ OF ACCOUNT TRANSFORMATION RULES **********************************************
@@ -1182,13 +590,6 @@ OUTPUT_DATA = LT_ACCOUNT_TR_RULES.
   ENDMETHOD.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_BPC_COMMON->READ_MASTER_DATA
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] I_DIMENSION_ID                 TYPE        UJ_DIM_NAME
-* | [<---] OUTPUT_R_DATA                  TYPE REF TO DATA
-* | [<-->] LT_SEL                         TYPE        UJ0_T_SEL(optional)
-* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD READ_MASTER_DATA.
 ************************************ READ_MASTER_DATA START****************************************
 
@@ -1261,14 +662,6 @@ OUTPUT_DATA = LT_ACCOUNT_TR_RULES.
   ENDMETHOD.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method ZCL_BPC_COMMON=>READ_MASTER_DATA_HIERARCHY
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] I_APPSET_ID                    TYPE        UJ_APPSET_ID
-* | [--->] I_DIMENSION                    TYPE        UJ_DIM_NAME
-* | [--->] I_PARENT_MBR                   TYPE        UJ_DIM_MEMBER
-* | [<---] OUTPUT_DATA                    TYPE        STANDARD TABLE
-* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD READ_MASTER_DATA_HIERARCHY.
 
     DATA:    LO_DIM      TYPE REF TO CL_UJA_DIM,
@@ -1302,14 +695,6 @@ OUTPUT_DATA = LT_ACCOUNT_TR_RULES.
   ENDMETHOD.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_BPC_COMMON->READ_MODEL_DATA
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] READ_MODEL                     TYPE        UJ_APPL_ID(optional)
-* | [--->] IT_CV                          TYPE        UJK_T_CV(optional)
-* | [--->] IT_SEL                         TYPE        UJ0_T_SEL(optional)
-* | [<---] OUTPUT_DATA                    TYPE        STANDARD TABLE
-* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD READ_MODEL_DATA.
 ************************************ READ_MODEL_DATA START ****************************************
 
@@ -1467,13 +852,6 @@ ENDIF.
   ENDMETHOD.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method ZCL_BPC_COMMON=>SWAP_USER
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] I_APPSET_ID                    TYPE        UJ_APPSET_ID
-* | [--->] I_APPL_ID                      TYPE        UJ_APPL_ID
-* | [--->] I_USER_ID                      TYPE        UJ_LARGE_STRING
-* +--------------------------------------------------------------------------------------</SIGNATURE>
 METHOD SWAP_USER.
 ************************************ SWAP_USER START ********************************************
 
@@ -1513,14 +891,6 @@ METHOD SWAP_USER.
   ENDMETHOD.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_BPC_COMMON->TARGET_ACCS
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] IT_CV                          TYPE        UJK_T_CV
-* | [<---] ET_MESSAGE                     TYPE        UJ0_T_MESSAGE
-* | [<---] TARGET_ACCOUNTS                TYPE        HASHED TABLE
-* | [!CX!] CX_UJ_CUSTOM_LOGIC
-* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD TARGET_ACCS.
 
 ******* EXPAND ACCOUNTS WITH SOURCES
@@ -1615,10 +985,6 @@ TARGET_ACCOUNTS = LT_ACCOUNT_COMPOUNDED.
   ENDMETHOD.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Static Public Method ZCL_BPC_COMMON=>TEST_AND_DEBUG
-* +-------------------------------------------------------------------------------------------------+
-* +--------------------------------------------------------------------------------------</SIGNATURE>
 METHOD TEST_AND_DEBUG.
 
 ************************************ TEST_AND_DEBUG START ***************************************
@@ -1721,14 +1087,6 @@ METHOD TEST_AND_DEBUG.
 *    ASSIGN LR_DATA->* TO <CHANGING_DATA>.
 ******************************************************************************************
 *
-**** Instance creation example ****************************************
-*  DATA: LO_TOOLS TYPE REF TO ZCL_BPC_COMMON. "INSTANCE REFERENCE
-**** SET TOOLS INSTANCE *****
-*  CREATE OBJECT LO_TOOLS
-*  EXPORTING
-*    I_ENV_ID      = I_APPSET_ID
-*    I_MOD_ID      = I_APPL_ID.
-
 ******************************************************************************************
 **SAMPLE CALLS
 ******************************************************************************************
@@ -1937,17 +1295,6 @@ METHOD TEST_AND_DEBUG.
   ENDMETHOD.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_BPC_COMMON->TIME
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] CATEGORY                       TYPE        STRING(optional)
-* | [--->] EXTEND                         TYPE        INT4(optional)
-* | [<---] TIMEQRTLY                      TYPE        SORTED TABLE
-* | [<---] TIMESCOPE                      TYPE        SORTED TABLE
-* | [<---] FIRST_PERIOD                   TYPE        UJA_S_DIM_MEMBER
-* | [<---] LAST_PERIOD                    TYPE        UJA_S_DIM_MEMBER
-* | [<---] CURRENT_PERIOD                 TYPE        UJA_S_DIM_MEMBER
-* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD TIME.
 "Set time scope depending on the category in IT_CV
 ***** Time structure definition ********************
@@ -1988,20 +1335,18 @@ FIELD-SYMBOLS: <DIMENSION_DATA> TYPE STANDARD TABLE.
 
     LOOP AT LT_TIMESCOPE INTO LS_TIME.
 
-      IF CATEGORY = 'WFORECAST'. "Forecast Category
+      IF CATEGORY = 'WFORECAST'.
 
         IF LS_TIME-BUDMONTH = 'B' AND LS_TIME-CURRMONTH <> 'F'.
           DELETE LT_TIMESCOPE INDEX SY-TABIX.
         ENDIF.
 
-      ELSEIF CATEGORY = 'BUDGET'. "Budget Category
+      ELSEIF CATEGORY = 'BUDGET'.
 
         IF LS_TIME-BUDMONTH <> 'B'.
           DELETE LT_TIMESCOPE INDEX SY-TABIX.
         ENDIF.
 
-        ELSE. "No category or any other
-
       ENDIF.
     ENDLOOP.
 
@@ -2019,82 +1364,22 @@ FIELD-SYMBOLS: <DIMENSION_DATA> TYPE STANDARD TABLE.
 
 TIMESCOPE = LT_TIMESCOPE.
 TIMEQRTLY = LT_TIMEQRTLY.
-
-DATA:  TARGET_PERIOD     TYPE CHAR8.
-
-DATA: SOURCE_MONTH TYPE N LENGTH 2,
-      SOURCE_YEAR TYPE char4.
-
-SOURCE_YEAR = LAST_PERIOD(4).
-SOURCE_MONTH = LAST_PERIOD+4(2).
-
-
-IF EXTEND IS NOT INITIAL.
-  CLEAR LT_TIMESCOPE.
-  MOVE-CORRESPONDING <DIMENSION_DATA> TO LT_TIMESCOPE.
-  DELETE LT_TIMESCOPE WHERE ID+5(2) = 'IN'.
-
-  DO EXTEND TIMES.
-  SOURCE_MONTH = SOURCE_MONTH + 1.
-  IF SOURCE_MONTH = 13.
-    SOURCE_YEAR = SOURCE_YEAR + 1.
-    SOURCE_MONTH = 01.
-  ENDIF.
-  TARGET_PERIOD = SOURCE_YEAR && SOURCE_MONTH && '00'.
-  ENDDO.
-    LOOP AT LT_TIMESCOPE INTO LS_TIME.
-      IF LS_TIME-TIMEID BETWEEN FIRST_PERIOD AND TARGET_PERIOD.
-        ELSE.
-          DELETE LT_TIMESCOPE INDEX SY-TABIX.
-      ENDIF.
-    ENDLOOP.
-
-    "Assign Time Quarterly
-    LT_TIMEQRTLY = LT_TIMESCOPE.
-    DELETE LT_TIMEQRTLY WHERE VAT_QLY NE 'Y'.
-
-*GET LAST AND FIRST PERIODS IN TIMEID FORMAT START
-    DESCRIBE TABLE LT_TIMESCOPE LINES COUNTER.
-    READ TABLE LT_TIMESCOPE INDEX COUNTER INTO LS_TIME.
-    LAST_PERIOD = LS_TIME-TIMEID.
-    READ TABLE LT_TIMESCOPE INDEX 1 INTO LS_TIME.
-    FIRST_PERIOD = LS_TIME-TIMEID.
-*GET LAST PERIOD IN TIMEID FORMAT END
-
-TIMESCOPE = LT_TIMESCOPE.
-TIMEQRTLY = LT_TIMEQRTLY.
-
-  ENDIF.
 
 
 
   ENDMETHOD.
 
 
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_BPC_COMMON->WRITE_MODEL_DATA
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] TARGET_MODEL                   TYPE        UJ_APPL_ID(optional)
-* | [--->] INPUT_DATA                     TYPE        STANDARD TABLE(optional)
-* | [--->] WRITE                          TYPE        CHAR1
-* | [<---] ET_MESSAGE                     TYPE        UJ0_T_MESSAGE
-* | [<---] ET_ERROR_RECORDS               TYPE        STANDARD TABLE
-* | [<---] LR_DATA                        TYPE REF TO DATA
-* +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD WRITE_MODEL_DATA.
 ************************************ WRITE_MODEL_DATA START ***************************************
 
-    DATA:   MODEL TYPE UJ_APPL_ID,
-            LS_WB_PARAM    TYPE IF_UJO_WRITE_BACK=>GS_WB_PARAM,
-            LS_PARAM         TYPE UJK_S_SCRIPT_LOGIC_HASHENTRY.
+    DATA:   MODEL TYPE UJ_APPL_ID.
 
     FIELD-SYMBOLS: <COMMIT_DATA> TYPE STANDARD TABLE.
 
-*********** Get parameters from script logic *******************************
-*** Pass the required parameters via script logic param and adjust this code
-  CLEAR: LS_PARAM, ET_MESSAGE.
-    READ TABLE IT_PARAM WITH KEY HASHKEY = 'RUN_DEFAULT' INTO LS_PARAM.
-***************************************************************************
+*Check if Target Model is empty.
+*If it is empty this means the sender and target are the same
+*No need to have different structure
 
     IF TARGET_MODEL IS INITIAL.
 
@@ -2145,6 +1430,7 @@ IF WRITE = 'Y'.
 *************************************************
 ***** WRITE BACK ********************************
     DATA: LO_UJO_WB      TYPE REF TO IF_UJO_WRITE_BACK,
+          LS_WB_PARAM    TYPE IF_UJO_WRITE_BACK=>GS_WB_PARAM,
           LS_WB_STATUS   TYPE UJO_S_WB_STATUS,
           LS_WORK_STATUS TYPE UJR_S_WORK_STATUS,
           LS_AUDIT       TYPE UJR_S_UPDATE_AUDIT,
@@ -2156,9 +1442,7 @@ IF WRITE = 'Y'.
     LO_UJO_WB = CL_UJO_WB_FACTORY=>CREATE_WRITE_BACK( ).
     LS_WB_PARAM = CL_UJO_WB_FACTORY=>DEFAULT_WB_PARAM( ).
     LS_WB_PARAM-WORK_STATUS = LS_WORK_STATUS.
-     IF LS_PARAM-HASHVALUE(1) = 'Y'.
-     LS_WB_PARAM-DEFAULT_LOGIC = ABAP_TRUE.
-     ENDIF.
+    LS_WB_PARAM-DEFAULT_LOGIC = ABAP_TRUE.
     LS_WB_PARAM-UPDATE_AUDIT = ABAP_TRUE.
     LS_WB_PARAM-DUPLICATE = ABAP_TRUE.
     LS_WB_PARAM-CALC_DELTA = ABAP_TRUE.
@@ -2166,6 +1450,7 @@ IF WRITE = 'Y'.
     LS_WB_PARAM-SIGN_TRANS = ABAP_TRUE.
     LS_WB_PARAM-MEASURES_FORMULA = LV_MEASURE.
     LS_WB_PARAM-AUDIT_INFO = LS_AUDIT.
+    LS_WB_PARAM-WORK_STATUS = LS_WORK_STATUS.
 
     LO_UJO_WB->WRITE_BACK(
     EXPORTING
@@ -2175,10 +1460,13 @@ IF WRITE = 'Y'.
      IT_RECORDS = <COMMIT_DATA>
     IMPORTING
      ES_WB_STATUS = LS_WB_STATUS
-     "ET_ERROR_RECORDS = ET_ERROR_RECORDS
+     ET_ERROR_RECORDS = ET_ERROR_RECORDS
      ET_MESSAGE = ET_MESSAGE ).
 
 ENDIF.
+
+*************************************************
+***** WRITE BACK ********************************
 
 ************************************ WRITE_MODEL_DATA END ****************************************
   ENDMETHOD.
